@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Card } from '../ui/Card';
 import { IoCalendar, IoAlertCircle, IoTime, IoRefresh, IoInformationCircle } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
@@ -363,19 +364,52 @@ function processEvent(event: EconomicCalendarEvent, index: number): ProcessedEve
   };
 }
 
-// Tooltip component with fixed positioning
+// Tooltip component with Portal for proper z-index handling
 function Tooltip({ children, content }: { children: React.ReactNode; content: string }) {
   const [show, setShow] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const handleMouseEnter = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPosition({
-      top: rect.top - 10,
-      left: rect.left + rect.width / 2,
-    });
+    // Position tooltip above the element
+    let top = rect.top - 10;
+    let left = rect.left + rect.width / 2;
+
+    // Keep tooltip within viewport horizontally
+    const tooltipWidth = 320;
+    if (left - tooltipWidth / 2 < 10) {
+      left = tooltipWidth / 2 + 10;
+    } else if (left + tooltipWidth / 2 > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipWidth / 2 - 10;
+    }
+
+    setPosition({ top, left });
     setShow(true);
   };
+
+  const tooltipContent = show ? createPortal(
+    <div
+      className="fixed px-3 py-2 text-sm text-white bg-gray-900 border border-terminal-border rounded-lg shadow-2xl max-w-[320px] whitespace-normal pointer-events-none"
+      style={{
+        top: position.top,
+        left: position.left,
+        transform: 'translate(-50%, -100%)',
+        zIndex: 99999,
+      }}
+    >
+      {content}
+      <div
+        className="absolute border-8 border-transparent border-t-gray-900"
+        style={{
+          top: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          marginTop: '-1px',
+        }}
+      />
+    </div>,
+    document.body
+  ) : null;
 
   return (
     <div
@@ -384,27 +418,7 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
       onMouseLeave={() => setShow(false)}
     >
       {children}
-      {show && (
-        <div
-          className="fixed z-[9999] px-3 py-2 text-sm text-white bg-gray-900 border border-terminal-border rounded-lg shadow-2xl max-w-[320px] whitespace-normal pointer-events-none"
-          style={{
-            top: position.top,
-            left: position.left,
-            transform: 'translate(-50%, -100%)',
-          }}
-        >
-          {content}
-          <div
-            className="absolute border-8 border-transparent border-t-gray-900"
-            style={{
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              marginTop: '-1px',
-            }}
-          />
-        </div>
-      )}
+      {tooltipContent}
     </div>
   );
 }

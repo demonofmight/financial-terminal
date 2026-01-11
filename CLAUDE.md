@@ -71,6 +71,7 @@ src/
 ## Development Rules
 
 - **All frontend changes must use the `/frontend-design` skill.** This ensures high design quality and production-grade interfaces.
+- **After completing a bugfix or new feature:** Always ask the user to test the changes first, then ask if they want to push to GitHub. Never push automatically without user confirmation.
 
 ## Environment Variables
 
