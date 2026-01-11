@@ -1,0 +1,85 @@
+================================================================================
+                        FINTERM - API KEYS REHBERI
+================================================================================
+
+Bu dosyada ihtiyacin olan API key'leri ve nasil alinacagini bulabilirsin.
+Key'leri aldiktan sonra projenin root klasorunde .env dosyasi olustur.
+
+--------------------------------------------------------------------------------
+1. FINANCIAL MODELING PREP (FMP)
+--------------------------------------------------------------------------------
+   Veri: S&P 500 hisseleri, Sektor performansi, US market verileri
+   Ucretsiz Limit: 250 istek/gun
+
+   KAYIT LINKI: https://site.financialmodelingprep.com/developer/docs
+
+   Adimlar:
+   1. Linke git ve "Get Free API Key" butonuna tikla
+   2. Email ile kayit ol
+   3. Dashboard'dan API key'ini kopyala
+
+   .env'e ekle:
+   VITE_FMP_API_KEY=your_key_here
+
+--------------------------------------------------------------------------------
+2. EXCHANGERATE-API
+--------------------------------------------------------------------------------
+   Veri: Doviz kurlari (USD/TRY, EUR/USD, vs.)
+   Ucretsiz Limit: 1,500 istek/ay
+
+   KAYIT LINKI: https://www.exchangerate-api.com/
+
+   Adimlar:
+   1. Linke git ve "Get Free Key" butonuna tikla
+   2. Email ile kayit ol
+   3. Email'ini dogrula
+   4. Dashboard'dan API key'ini kopyala
+
+   .env'e ekle:
+   VITE_EXCHANGE_API_KEY=your_key_here
+
+--------------------------------------------------------------------------------
+3. GOLD-API
+--------------------------------------------------------------------------------
+   Veri: Altin, Gumus, Platin, Paladyum fiyatlari
+   Ucretsiz Limit: 300 istek/ay
+
+   KAYIT LINKI: https://www.goldapi.io/
+
+   Adimlar:
+   1. Linke git ve "GET FREE API KEY" butonuna tikla
+   2. Email ile kayit ol
+   3. Email'ini dogrula
+   4. Dashboard'dan API key'ini kopyala
+
+   .env'e ekle:
+   VITE_GOLD_API_KEY=your_key_here
+
+================================================================================
+                           .ENV DOSYASI ORNEGI
+================================================================================
+
+Projenin root klasorunde .env dosyasi olustur ve asagidaki formatta key'leri ekle:
+
+------- .env -------
+VITE_FMP_API_KEY=abc123def456
+VITE_EXCHANGE_API_KEY=xyz789abc123
+VITE_GOLD_API_KEY=gold123api456
+--------------------
+
+NOT: .env dosyasi zaten .gitignore'da, GitHub'a yuklenmeyecek.
+
+================================================================================
+                      API KEY GEREKTIRMEYEN SERVISLER
+================================================================================
+
+Asagidaki API'ler key gerektirmez, direkt kullanilabilir:
+
+1. CoinGecko (Kripto)      - https://www.coingecko.com/en/api
+2. Alternative.me          - https://alternative.me/crypto/fear-and-greed-index/
+3. Yahoo Finance*          - VIX, BIST, Global Markets
+
+* Yahoo Finance unofficial API - cok fazla istek atma, rate limit yok ama
+  kotu kullanim engellenebilir.
+
+================================================================================
