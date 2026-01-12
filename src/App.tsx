@@ -33,6 +33,7 @@ const symbolMappings: Record<string, string> = {
   XLU: 'AMEX:XLU',
   XLC: 'AMEX:XLC',
   XLP: 'AMEX:XLP',
+  ITA: 'AMEX:ITA',
   // Metals
   XAU: 'TVC:GOLD',
   XAG: 'TVC:SILVER',
@@ -44,6 +45,11 @@ const symbolMappings: Record<string, string> = {
   solana: 'BINANCE:SOLUSDT',
   ripple: 'BINANCE:XRPUSDT',
   bnb: 'BINANCE:BNBUSDT',
+  cardano: 'BINANCE:ADAUSDT',
+  dogecoin: 'BINANCE:DOGEUSDT',
+  polkadot: 'BINANCE:DOTUSDT',
+  avalanche: 'BINANCE:AVAXUSDT',
+  chainlink: 'BINANCE:LINKUSDT',
   // Currency pairs
   'USD/TRY': 'FX:USDTRY',
   'EUR/USD': 'FX:EURUSD',
@@ -65,24 +71,41 @@ const symbolMappings: Record<string, string> = {
   XU100: 'BIST:XU100',
   // VIX
   VIX: 'TVC:VIX',
-  // Global Indices
-  DJI: 'DJ:DJI',
-  IXIC: 'NASDAQ:IXIC',
-  DAX: 'XETR:DAX',
-  FTSE: 'LSE:UKX',
-  CAC: 'EURONEXT:PX1',
-  N225: 'TVC:NI225',
-  HSI: 'HSI:HSI',
-  KOSPI: 'KRX:KOSPI',
-  // Commodities
-  CL: 'NYMEX:CL1!',
-  BZ: 'NYMEX:BB1!',
-  NG: 'NYMEX:NG1!',
-  HG: 'COMEX:HG1!',
-  ZW: 'CBOT:ZW1!',
+  // Global Indices (Yahoo symbol -> TradingView symbol)
+  GSPC: 'SP:SPX',        // S&P 500
+  DJI: 'DJ:DJI',         // Dow Jones
+  IXIC: 'NASDAQ:NDX',    // NASDAQ
+  GDAXI: 'XETR:DAX',     // DAX
+  FTSE: 'SPREADEX:FTSE', // FTSE 100
+  FCHI: 'EURONEXT:PX1',  // CAC 40
+  N225: 'TVC:NI225',     // Nikkei 225
+  HSI: 'TVC:HSI',        // Hang Seng
+  KS11: 'KRX:KOSPI',     // KOSPI
+  // Commodities (Futures)
+  CL: 'NYMEX:CL1!',      // WTI Crude Oil
+  BZ: 'NYMEX:BB1!',      // Brent Crude
+  NG: 'NYMEX:NG1!',      // Natural Gas
+  HG: 'COMEX:HG1!',      // Copper
+  ZW: 'CBOT:ZW1!',       // Wheat
+  // US Index Futures (for extended hours)
+  ES: 'CME_MINI:ES1!',   // S&P 500 E-mini
+  NQ: 'CME_MINI:NQ1!',   // NASDAQ E-mini
+  YM: 'CBOT_MINI:YM1!',  // Dow E-mini
   // Treasury
   TNX: 'TVC:TNX',
 };
+
+// Symbols that should open in new tab (embedded widget doesn't work well)
+const openInNewTabSymbols = [
+  // BIST
+  'THYAO', 'SISE', 'EREGL', 'GARAN', 'AKBNK', 'YKBNK', 'ASELS', 'KCHOL', 'SAHOL', 'TUPRS', 'XU100',
+  // Commodities (futures have issues with embedded widget)
+  'CL', 'BZ', 'NG', 'HG', 'ZW',
+  // Global Indices (some have issues)
+  'GSPC', 'DJI', 'IXIC', 'GDAXI', 'FTSE', 'FCHI', 'N225', 'HSI', 'KS11',
+  // US Index Futures
+  'ES', 'NQ', 'YM',
+];
 
 function AppContent() {
   const { t } = useLanguage();
@@ -130,15 +153,12 @@ function AppContent() {
     }
   }, [isInitialized, lastUpdate, updateLastRefresh]);
 
-  // BIST symbols need to open in new tab (widget doesn't support them)
-  const bistSymbols = ['THYAO', 'SISE', 'EREGL', 'GARAN', 'AKBNK', 'YKBNK', 'ASELS', 'KCHOL', 'SAHOL', 'TUPRS', 'XU100'];
-
   const openChart = useCallback((symbol: string, title?: string) => {
     const tvSymbol = symbolMappings[symbol] || symbol;
 
-    // Check if it's a BIST symbol - open in new tab
-    if (bistSymbols.includes(symbol) || tvSymbol.startsWith('BIST:')) {
-      const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${tvSymbol}`;
+    // Check if symbol should open in new tab (embedded widget doesn't work well for these)
+    if (openInNewTabSymbols.includes(symbol) || tvSymbol.startsWith('BIST:')) {
+      const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}`;
       window.open(tradingViewUrl, '_blank');
       return;
     }

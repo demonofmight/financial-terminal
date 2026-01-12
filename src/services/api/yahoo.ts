@@ -153,6 +153,11 @@ export const YAHOO_SYMBOLS = {
   NASDAQ: '^IXIC',
   DOW: '^DJI',
 
+  // US Futures (for after-hours/pre-market trading)
+  ES: 'ES=F', // S&P 500 E-mini (US500)
+  NQ: 'NQ=F', // NASDAQ E-mini (US100)
+  YM: 'YM=F', // Dow E-mini (US30)
+
   // Global Indices
   DAX: '^GDAXI',
   FTSE: '^FTSE',
@@ -249,6 +254,20 @@ export async function fetchGlobalIndices(): Promise<QuoteData[]> {
     YAHOO_SYMBOLS.NIKKEI,
     YAHOO_SYMBOLS.HANGSENG,
     YAHOO_SYMBOLS.KOSPI,
+  ];
+
+  return fetchMultipleQuotes(symbols);
+}
+
+/**
+ * Fetch US Futures for extended hours trading (pre-market, after-hours, Sunday futures)
+ * Returns ES (S&P 500), NQ (NASDAQ), YM (Dow) futures
+ */
+export async function fetchUSFutures(): Promise<QuoteData[]> {
+  const symbols = [
+    YAHOO_SYMBOLS.ES,
+    YAHOO_SYMBOLS.NQ,
+    YAHOO_SYMBOLS.YM,
   ];
 
   return fetchMultipleQuotes(symbols);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Card } from '../ui/Card';
 import { IoCalendar, IoAlertCircle, IoTime, IoRefresh, IoInformationCircle } from 'react-icons/io5';
@@ -424,14 +424,45 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
   );
 }
 
+const CALENDAR_STORAGE_KEY = 'economic_calendar_last_fetch';
+
+// Check if we need to refresh (new week started)
+function shouldRefreshCalendar(): boolean {
+  const lastFetch = localStorage.getItem(CALENDAR_STORAGE_KEY);
+  if (!lastFetch) return true;
+
+  const lastFetchDate = new Date(parseInt(lastFetch, 10));
+  const now = new Date();
+
+  // Get the Monday of the current week
+  const currentMonday = new Date(now);
+  currentMonday.setDate(now.getDate() - now.getDay() + 1);
+  currentMonday.setHours(0, 0, 0, 0);
+
+  // Get the Monday of the last fetch week
+  const lastFetchMonday = new Date(lastFetchDate);
+  lastFetchMonday.setDate(lastFetchDate.getDate() - lastFetchDate.getDay() + 1);
+  lastFetchMonday.setHours(0, 0, 0, 0);
+
+  // Refresh if it's a new week
+  return currentMonday.getTime() > lastFetchMonday.getTime();
+}
+
 export function EconomicCalendar() {
   const { t, language } = useLanguage();
   const { refreshKey } = useRefresh();
   const [events, setEvents] = useState<ProcessedEvent[]>(mockEvents);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastRefreshKeyRef = useRef(0);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
+    // Skip refresh if not forced and data is fresh (same week)
+    if (!force && !shouldRefreshCalendar()) {
+      console.log('[EconomicCalendar] Skipping refresh - data is from this week');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -442,6 +473,7 @@ export function EconomicCalendar() {
       if (data && data.length > 0) {
         const processed = data.map((event, index) => processEvent(event, index));
         setEvents(processed);
+        localStorage.setItem(CALENDAR_STORAGE_KEY, Date.now().toString());
       } else {
         console.warn('No economic calendar data, using mock');
         setError('Using cached data');
@@ -455,15 +487,16 @@ export function EconomicCalendar() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true); // Force fetch on mount
   }, [fetchData]);
 
-  // Listen for global refresh
+  // Listen for global refresh - but only refresh if it's a new week
   useEffect(() => {
-    if (refreshKey > 0) {
-      fetchData();
+    if (refreshKey > 0 && refreshKey !== lastRefreshKeyRef.current) {
+      lastRefreshKeyRef.current = refreshKey;
+      fetchData(false); // Don't force - let it check if new week
     }
-  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshKey, fetchData]);
 
   const highImpactCount = events.filter(e => e.impact === 'high').length;
   const nextHighImpact = events.find(e => e.impact === 'high');
@@ -474,7 +507,7 @@ export function EconomicCalendar() {
       headerAction={
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchData}
+            onClick={() => fetchData(true)}
             disabled={isLoading}
             className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
             title="Refresh"

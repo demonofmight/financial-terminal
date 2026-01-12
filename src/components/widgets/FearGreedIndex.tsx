@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchFearGreedIndex, getColorFromValue, type FearGreedData } from '../../services/api/feargreed';
 import { useRefresh } from '../../contexts/RefreshContext';
+
+const STORAGE_KEY = 'feargreed_last_fetch';
+const REFRESH_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours - Fear & Greed updates daily
 
 interface FearGreedIndexProps {
   onClick?: () => void;
@@ -15,15 +18,28 @@ export function FearGreedIndex({ onClick }: FearGreedIndexProps) {
   const [data, setData] = useState<FearGreedData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastRefreshKeyRef = useRef(0);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
+    // Check if we should skip refresh (for auto-refresh, not manual)
+    if (!force) {
+      const lastFetch = localStorage.getItem(STORAGE_KEY);
+      if (lastFetch) {
+        const timeSinceLastFetch = Date.now() - parseInt(lastFetch, 10);
+        if (timeSinceLastFetch < REFRESH_INTERVAL) {
+          console.log('[Fear&Greed] Skipping refresh - data is fresh (updates daily)');
+          return;
+        }
+      }
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await fetchFearGreedIndex(7);
       setData(result);
-      // Clear any previous error since we got data (even if it's fallback)
+      localStorage.setItem(STORAGE_KEY, Date.now().toString());
       setError(null);
     } catch (err) {
       console.error('Failed to fetch Fear & Greed data:', err);
@@ -34,15 +50,16 @@ export function FearGreedIndex({ onClick }: FearGreedIndexProps) {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true); // Force fetch on mount
   }, [fetchData]);
 
-  // Listen for global refresh
+  // Listen for global refresh - but only refresh if data is stale
   useEffect(() => {
-    if (refreshKey > 0) {
-      fetchData();
+    if (refreshKey > 0 && refreshKey !== lastRefreshKeyRef.current) {
+      lastRefreshKeyRef.current = refreshKey;
+      fetchData(false); // Don't force - let it check if needed
     }
-  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshKey, fetchData]);
 
   // Get translated label based on value
   const getLabel = (val: number) => {
@@ -66,7 +83,7 @@ export function FearGreedIndex({ onClick }: FearGreedIndexProps) {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            fetchData();
+            fetchData(true); // Force refresh on manual click
           }}
           disabled={isLoading}
           className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
@@ -83,7 +100,7 @@ export function FearGreedIndex({ onClick }: FearGreedIndexProps) {
       ) : error && !data ? (
         <div className="text-center py-8">
           <p className="text-xs text-neon-red">{error}</p>
-          <button onClick={fetchData} className="mt-2 text-xs text-gray-400 hover:text-white">
+          <button onClick={() => fetchData(true)} className="mt-2 text-xs text-gray-400 hover:text-white">
             Try again
           </button>
         </div>

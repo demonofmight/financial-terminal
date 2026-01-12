@@ -138,7 +138,7 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
           <div className="w-6 h-6 border-2 border-neon-cyan/30 border-t-neon-cyan rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {commodities.map((commodity) => {
             const price = safeNumber(commodity.price, 0);
             const change = safeNumber(commodity.change, 0);
@@ -146,24 +146,24 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
               <button
                 key={commodity.symbol}
                 onClick={() => onCommodityClick?.(commodity.symbol)}
-                className="w-full flex items-center justify-between p-2.5 rounded bg-terminal-border/20 hover:bg-terminal-border/40 transition-all group"
+                className="w-full flex items-center justify-between p-3 rounded bg-terminal-border/20 hover:bg-terminal-border/40 transition-all group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-xl">
+                  <div className="text-2xl">
                     {iconMap[commodity.icon]}
                   </div>
                   <div className="text-left">
-                    <div className="text-xs text-white font-medium">{t(commodity.nameKey)}</div>
-                    <div className="text-[10px] text-gray-500 font-mono">{commodity.symbol}</div>
+                    <div className="text-sm text-white font-medium">{t(commodity.nameKey)}</div>
+                    <div className="text-xs text-gray-500 font-mono">{commodity.symbol}</div>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className="text-sm font-mono text-white">
+                  <div className="text-base font-mono text-white">
                     ${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
-                    <span className="text-[10px] text-gray-500 ml-0.5">{commodity.unit}</span>
+                    <span className="text-xs text-gray-500 ml-1">{commodity.unit}</span>
                   </div>
-                  <div className={`text-[10px] font-mono ${change >= 0 ? 'value-positive' : 'value-negative'}`}>
+                  <div className={`text-sm font-mono ${change >= 0 ? 'value-positive' : 'value-negative'}`}>
                     {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
                   </div>
                 </div>
@@ -172,16 +172,16 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
           })}
 
           {/* Copper as Economic Indicator */}
-          <div className="mt-3 pt-3 border-t border-terminal-border">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
+          <div className="mt-4 pt-4 border-t border-terminal-border">
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
               {t('drCopperSays')}
             </div>
-            <div className={`flex items-center gap-2 p-2 rounded text-xs ${
+            <div className={`flex items-center gap-2 p-3 rounded text-sm ${
               copperChange > 0
                 ? 'bg-neon-green/10 border border-neon-green/30'
                 : 'bg-neon-amber/10 border border-neon-amber/30'
             }`}>
-              <IoCube className={copperChange > 0 ? 'text-neon-green' : 'text-neon-amber'} />
+              <IoCube className={`text-lg ${copperChange > 0 ? 'text-neon-green' : 'text-neon-amber'}`} />
               <span className="text-gray-300">
                 {copperChange > 0 ? t('demandRising') : t('demandWeakening')}
               </span>

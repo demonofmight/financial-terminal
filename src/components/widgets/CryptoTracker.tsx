@@ -167,7 +167,7 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
             cryptoData.map((crypto) => (
               <div
                 key={crypto.id}
-                className="flex items-center justify-between p-2 rounded bg-terminal-border/30 hover:bg-terminal-border/50 transition-all group cursor-pointer"
+                className="flex items-center justify-between p-3 rounded bg-terminal-border/30 hover:bg-terminal-border/50 transition-all group cursor-pointer"
                 onClick={() => !editMode && onCryptoClick?.(crypto.id)}
               >
                 <div className="flex items-center gap-3">
@@ -185,26 +185,25 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
                   <img
                     src={crypto.image}
                     alt={crypto.name}
-                    className="w-5 h-5 rounded-full"
+                    className="w-6 h-6 rounded-full"
                   />
                   <div>
-                    <span className="text-neon-cyan font-mono text-sm">{crypto.symbol}</span>
-                    <span className="text-gray-500 text-xs ml-2">{crypto.name}</span>
+                    <div className="text-sm font-medium text-white">{crypto.name}</div>
+                    <div className="text-xs text-gray-500 font-mono uppercase">{crypto.symbol}</div>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className="font-mono text-sm text-white">
+                  <div className="font-mono text-base text-white">
                     ${crypto.current_price.toLocaleString('en-US', {
                       minimumFractionDigits: crypto.current_price < 1 ? 4 : 2,
                       maximumFractionDigits: crypto.current_price < 1 ? 4 : 2,
                     })}
                   </div>
-                  <div className={`font-mono text-xs ${
+                  <div className={`font-mono text-sm ${
                     crypto.price_change_percentage_24h >= 0 ? 'value-positive' : 'value-negative'
                   }`}>
-                    {crypto.price_change_percentage_24h >= 0 ? '+' : ''}
-                    {crypto.price_change_percentage_24h.toFixed(2)}%
+                    {crypto.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(crypto.price_change_percentage_24h).toFixed(2)}%
                   </div>
                 </div>
               </div>

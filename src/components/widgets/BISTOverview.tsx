@@ -197,12 +197,12 @@ export function BISTOverview({ onStockClick }: BISTOverviewProps) {
                       className="w-full flex items-center justify-between p-2.5 rounded bg-neon-green/5 hover:bg-neon-green/10 border border-neon-green/10 transition-all text-left"
                     >
                       <div>
-                        <div className="text-xs text-neon-cyan font-mono">{stock.symbol}</div>
-                        <div className="text-[10px] text-gray-500 truncate max-w-[80px]">{stock.name}</div>
+                        <div className="text-sm text-neon-cyan font-mono font-medium">{stock.symbol}</div>
+                        <div className="text-xs text-gray-500 truncate max-w-[80px]">{stock.name}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs font-mono text-white">₺{safeNumber(stock.price, 0).toFixed(2)}</div>
-                        <div className="text-[10px] font-mono value-positive">+{stockChange.toFixed(2)}%</div>
+                        <div className="text-sm font-mono text-white">₺{safeNumber(stock.price, 0).toFixed(2)}</div>
+                        <div className="text-xs font-mono value-positive">▲ {stockChange.toFixed(2)}%</div>
                       </div>
                     </button>
                   );
@@ -228,12 +228,12 @@ export function BISTOverview({ onStockClick }: BISTOverviewProps) {
                       className="w-full flex items-center justify-between p-2.5 rounded bg-neon-red/5 hover:bg-neon-red/10 border border-neon-red/10 transition-all text-left"
                     >
                       <div>
-                        <div className="text-xs text-neon-cyan font-mono">{stock.symbol}</div>
-                        <div className="text-[10px] text-gray-500 truncate max-w-[80px]">{stock.name}</div>
+                        <div className="text-sm text-neon-cyan font-mono font-medium">{stock.symbol}</div>
+                        <div className="text-xs text-gray-500 truncate max-w-[80px]">{stock.name}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs font-mono text-white">₺{safeNumber(stock.price, 0).toFixed(2)}</div>
-                        <div className="text-[10px] font-mono value-negative">{stockChange.toFixed(2)}%</div>
+                        <div className="text-sm font-mono text-white">₺{safeNumber(stock.price, 0).toFixed(2)}</div>
+                        <div className="text-xs font-mono value-negative">▼ {Math.abs(stockChange).toFixed(2)}%</div>
                       </div>
                     </button>
                   );

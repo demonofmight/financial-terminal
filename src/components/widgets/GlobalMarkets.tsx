@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card } from '../ui/Card';
 import { IoGlobeOutline, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
-import { fetchGlobalIndices } from '../../services/api/yahoo';
+import { fetchGlobalIndices, fetchUSFutures } from '../../services/api/yahoo';
 import { useRefresh } from '../../contexts/RefreshContext';
 import { getMarketStatus as getCentralMarketStatus, type MarketStatus } from '../../utils/marketHours';
 import type { QuoteData } from '../../services/api/yahoo';
@@ -14,6 +14,7 @@ interface MarketIndex {
   value: number;
   change: number;
   status: MarketStatus;
+  isFutures?: boolean;
 }
 
 // Index name and region mappings
@@ -27,6 +28,13 @@ const indexInfo: Record<string, { name: string; region: string }> = {
   '^N225': { name: 'Nikkei 225', region: 'JP' },
   '^HSI': { name: 'Hang Seng', region: 'HK' },
   '^KS11': { name: 'KOSPI', region: 'KR' },
+};
+
+// US Futures mappings (for extended hours trading)
+const futuresInfo: Record<string, { name: string; displaySymbol: string }> = {
+  'ES=F': { name: 'S&P 500 Futures', displaySymbol: 'ES' },
+  'NQ=F': { name: 'NASDAQ Futures', displaySymbol: 'NQ' },
+  'YM=F': { name: 'Dow Futures', displaySymbol: 'YM' },
 };
 
 // Fallback mock data
@@ -93,19 +101,76 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
     setError(null);
 
     try {
-      const data = await fetchGlobalIndices();
+      // Check US market status to determine if we should fetch futures
+      const usMarketStatus = getCentralMarketStatus('US');
+      const shouldFetchFutures = usMarketStatus.status === 'pre' ||
+                                  usMarketStatus.status === 'post' ||
+                                  usMarketStatus.status === 'futures';
 
-      const processedMarkets: MarketIndex[] = data.map((quote: QuoteData) => {
-        const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
-        return {
-          symbol: quote.symbol.replace('^', ''),
-          name: info.name,
-          region: info.region,
-          value: quote.price,
-          change: quote.changePercent,
-          status: getMarketStatus(info.region),
-        };
-      });
+      // Fetch global indices
+      const indicesData = await fetchGlobalIndices();
+
+      // Process indices (excluding US if we're showing futures)
+      const processedMarkets: MarketIndex[] = indicesData
+        .filter((quote: QuoteData) => {
+          // If showing futures, exclude US indices
+          if (shouldFetchFutures) {
+            const isUSIndex = quote.symbol === '^GSPC' || quote.symbol === '^DJI' || quote.symbol === '^IXIC';
+            return !isUSIndex;
+          }
+          return true;
+        })
+        .map((quote: QuoteData) => {
+          const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
+          return {
+            symbol: quote.symbol.replace('^', ''),
+            name: info.name,
+            region: info.region,
+            value: quote.price,
+            change: quote.changePercent,
+            status: getMarketStatus(info.region),
+          };
+        });
+
+      // If US market is in extended hours, fetch and add futures
+      if (shouldFetchFutures) {
+        try {
+          const futuresData = await fetchUSFutures();
+          const processedFutures: MarketIndex[] = futuresData.map((quote: QuoteData) => {
+            const info = futuresInfo[quote.symbol] || { name: quote.symbol, displaySymbol: quote.symbol };
+            return {
+              symbol: info.displaySymbol,
+              name: info.name,
+              region: 'US',
+              value: quote.price,
+              change: quote.changePercent,
+              status: usMarketStatus.status,
+              isFutures: true,
+            };
+          });
+          // Add futures at the beginning for US section
+          processedMarkets.unshift(...processedFutures);
+        } catch (futuresErr) {
+          console.error('Failed to fetch US futures:', futuresErr);
+          // If futures fail, fall back to regular indices
+          const fallbackIndices = indicesData
+            .filter((quote: QuoteData) => {
+              return quote.symbol === '^GSPC' || quote.symbol === '^DJI' || quote.symbol === '^IXIC';
+            })
+            .map((quote: QuoteData) => {
+              const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
+              return {
+                symbol: quote.symbol.replace('^', ''),
+                name: info.name,
+                region: info.region,
+                value: quote.price,
+                change: quote.changePercent,
+                status: getMarketStatus(info.region),
+              };
+            });
+          processedMarkets.unshift(...fallbackIndices);
+        }
+      }
 
       setMarkets(processedMarkets);
     } catch (err) {
@@ -137,23 +202,28 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
     <button
       key={index.symbol}
       onClick={() => onIndexClick?.(index.symbol)}
-      className="flex items-center justify-between p-2 rounded bg-terminal-border/20 hover:bg-terminal-border/40 transition-all text-left w-full"
+      className="flex items-center justify-between p-2.5 rounded bg-terminal-border/20 hover:bg-terminal-border/40 transition-all text-left w-full"
     >
       <div className="flex items-center gap-2">
-        <span className={`text-[10px] font-bold ${regionColors[index.region]}`}>
-          {index.region}
+        <span className={`text-xs font-bold ${regionColors[index.region]}`}>
+          {index.isFutures ? 'FUT' : index.region}
         </span>
         <div>
-          <div className="text-xs text-white font-medium">{index.name}</div>
-          <div className="text-[10px] text-gray-500 font-mono">{index.symbol}</div>
+          <div className="text-sm text-white font-medium">
+            {index.name}
+            {index.isFutures && (
+              <span className="ml-1 text-[10px] text-purple-400">(LIVE)</span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500 font-mono">{index.symbol}</div>
         </div>
       </div>
       <div className="text-right">
-        <div className="text-xs font-mono text-white">
+        <div className="text-sm font-mono text-white">
           {index.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
         </div>
-        <div className={`text-[10px] font-mono ${index.change >= 0 ? 'value-positive' : 'value-negative'}`}>
-          {index.change >= 0 ? '+' : ''}{index.change.toFixed(2)}%
+        <div className={`text-xs font-mono ${index.change >= 0 ? 'value-positive' : 'value-negative'}`}>
+          {index.change >= 0 ? '▲' : '▼'} {Math.abs(index.change).toFixed(2)}%
         </div>
       </div>
     </button>

@@ -101,33 +101,34 @@ export function CurrencyRates({ onPairClick }: CurrencyRatesProps) {
         </div>
       ) : (
         <>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {currencies.map((currency) => (
               <button
                 key={currency.pair}
                 onClick={() => onPairClick?.(currency.pair)}
-                className="w-full flex items-center justify-between p-2.5 rounded bg-terminal-border/30 hover:bg-terminal-border/50 transition-all group"
+                className="w-full flex items-center justify-between p-3 rounded bg-terminal-border/30 hover:bg-terminal-border/50 transition-all group"
               >
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                   <div className="flex items-center">
-                    <span className="text-base">{currency.flag1}</span>
-                    <span className="text-base ml-0.5">{currency.flag2}</span>
+                    <span className="text-xl">{currency.flag1}</span>
+                    <span className="text-xl ml-0.5">{currency.flag2}</span>
                   </div>
-                  <div className="flex items-center font-mono text-sm whitespace-nowrap">
-                    <span className="text-neon-cyan font-medium">{currency.base}</span>
-                    <span className="text-gray-500 mx-0.5">/</span>
-                    <span className="text-gray-400">{currency.quote}</span>
+                  <div className="text-left">
+                    <div className="text-sm font-medium text-white">{currency.pair}</div>
+                    <div className="text-xs text-gray-500 font-mono">
+                      {currency.base}/{currency.quote}
+                    </div>
                   </div>
                 </div>
 
                 <div className="text-right shrink-0 ml-3">
-                  <div className="font-mono text-sm text-white">
+                  <div className="font-mono text-base text-white">
                     {currency.rate.toLocaleString('en-US', {
                       minimumFractionDigits: currency.rate > 100 ? 2 : 4,
                       maximumFractionDigits: currency.rate > 100 ? 2 : 4,
                     })}
                   </div>
-                  <div className={`font-mono text-[10px] ${
+                  <div className={`font-mono text-sm ${
                     currency.change >= 0 ? 'value-positive' : 'value-negative'
                   }`}>
                     {currency.change >= 0 ? '▲' : '▼'} {Math.abs(currency.change).toFixed(2)}%
