@@ -7,24 +7,42 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Modern Dark Theme
         terminal: {
-          bg: '#0a0a0f',
-          card: '#12131a',
-          border: '#1e2028',
-          'border-glow': '#00ff8820',
+          bg: '#000000',           // Pure black background
+          card: '#0a0a0a',         // Near black cards
+          'card-hover': '#111111', // Hover state
+          border: '#1a1a1a',       // Subtle borders
         },
+        // Muted accent colors (professional, not neon)
+        accent: {
+          green: '#22c55e',        // Positive values
+          red: '#ef4444',          // Negative values
+          amber: '#f59e0b',        // Warning/neutral
+          blue: '#3b82f6',         // Info/links
+          cyan: '#06b6d4',         // Secondary accent
+          purple: '#8b5cf6',       // Special highlights
+        },
+        // Legacy neon aliases for backwards compatibility
         neon: {
-          green: '#00ff88',
-          'green-dim': '#00cc6a',
-          red: '#ff3366',
-          'red-dim': '#cc2952',
-          amber: '#ffb000',
-          cyan: '#00d4ff',
-          purple: '#a855f7',
+          green: '#22c55e',
+          'green-dim': '#16a34a',
+          red: '#ef4444',
+          'red-dim': '#dc2626',
+          amber: '#f59e0b',
+          cyan: '#06b6d4',
+          purple: '#8b5cf6',
+        },
+        // Text colors
+        text: {
+          primary: '#e5e5e5',
+          secondary: '#a3a3a3',
+          muted: '#737373',
+          dim: '#525252',
         },
         gray: {
-          850: '#1a1b23',
-          950: '#0d0e12',
+          850: '#18181b',
+          950: '#09090b',
         }
       },
       fontFamily: {
@@ -33,36 +51,23 @@ export default {
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'glow': 'glow 2s ease-in-out infinite alternate',
-        'scanline': 'scanline 8s linear infinite',
-        'flicker': 'flicker 0.15s infinite',
-        'data-stream': 'dataStream 20s linear infinite',
+        'fade-in': 'fadeIn 0.3s ease-out forwards',
+        'slide-up': 'slideUp 0.4s ease-out forwards',
+        'scale-in': 'scaleIn 0.2s ease-out forwards',
       },
       keyframes: {
-        glow: {
-          '0%': { boxShadow: '0 0 5px #00ff8840, 0 0 10px #00ff8820' },
-          '100%': { boxShadow: '0 0 10px #00ff8860, 0 0 20px #00ff8830, 0 0 30px #00ff8810' },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
-        scanline: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(100vh)' },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        flicker: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.95' },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
-        dataStream: {
-          '0%': { backgroundPosition: '0% 0%' },
-          '100%': { backgroundPosition: '0% 100%' },
-        },
-      },
-      backgroundImage: {
-        'grid-pattern': `linear-gradient(#1e202810 1px, transparent 1px),
-                         linear-gradient(90deg, #1e202810 1px, transparent 1px)`,
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-      },
-      backgroundSize: {
-        'grid': '20px 20px',
       },
     },
   },

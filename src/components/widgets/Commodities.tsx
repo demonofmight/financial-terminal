@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoFlame, IoCube, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchCommodities } from '../../services/api/yahoo';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 import { isWeekend } from '../../utils/marketHours';
 import { DataTimestamp } from '../ui/DataTimestamp';
 import type { QuoteData } from '../../services/api/yahoo';
@@ -56,6 +57,8 @@ interface CommoditiesProps {
 export function Commodities({ onCommodityClick }: CommoditiesProps) {
   const { t } = useLanguage();
   const { refreshKey } = useRefresh();
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const [commodities, setCommodities] = useState<Commodity[]>(mockCommodities);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,14 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
       fetchData();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.COMMODITIES);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
 
   // Economic signal based on copper (Dr. Copper)
   const copper = commodities.find(c => c.symbol === 'HG');

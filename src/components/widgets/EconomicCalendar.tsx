@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Card } from '../ui/Card';
 import { IoCalendar, IoAlertCircle, IoTime, IoRefresh, IoInformationCircle } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchForexFactoryCalendar, type ForexFactoryEvent } from '../../services/api/forexfactory';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 
 interface ProcessedEvent {
   id: string;
@@ -412,6 +413,8 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
 export function EconomicCalendar() {
   const { t, language } = useLanguage();
   useRefresh(); // Keep hook for consistency but don't use refreshKey
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const [events, setEvents] = useState<ProcessedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -450,6 +453,14 @@ export function EconomicCalendar() {
   useEffect(() => {
     fetchData(false);
   }, [fetchData]);
+
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.CALENDAR);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
 
   // NOTE: Economic Calendar does NOT auto-refresh with other widgets
   // ForexFactory API only updates once per hour and has strict rate limits

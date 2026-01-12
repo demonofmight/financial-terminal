@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoTrendingUp, IoTrendingDown, IoRefresh } from 'react-icons/io5';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../i18n';
 import { fetchSP500TopMovers } from '../../services/api/yahoo';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 
 type TimeFrame = 'daily' | 'weekly' | 'monthly';
 
@@ -14,7 +16,6 @@ interface Mover {
   change: number;
 }
 
-// Mock data for daily when API fails
 const mockDailyGainers: Mover[] = [
   { symbol: 'NVDA', name: 'NVIDIA Corp', price: 875.42, change: 3.45 },
   { symbol: 'AAPL', name: 'Apple Inc', price: 182.52, change: 2.12 },
@@ -31,7 +32,6 @@ const mockDailyLosers: Mover[] = [
   { symbol: 'JNJ', name: 'Johnson & Johnson', price: 156.32, change: -0.67 },
 ];
 
-// Mock data for weekly/monthly (premium API required for historical)
 const mockWeeklyMonthly = {
   weekly: {
     gainers: [
@@ -74,6 +74,8 @@ interface SP500TopMoversProps {
 export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
   const { t } = useLanguage();
   const { refreshKey } = useRefresh();
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('daily');
   const [showGainers, setShowGainers] = useState(true);
   const [dailyGainers, setDailyGainers] = useState<Mover[]>(mockDailyGainers);
@@ -87,24 +89,22 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
 
     try {
       const { gainers, losers } = await fetchSP500TopMovers();
-      console.log('S&P 500 data received - Gainers:', gainers.length, 'Losers:', losers.length);
 
       if (gainers.length > 0 || losers.length > 0) {
         setDailyGainers(gainers.map(s => ({
           symbol: s.symbol,
-          name: s.symbol, // Yahoo doesn't return name, use symbol
+          name: s.symbol,
           price: s.price,
           change: s.changePercent,
         })));
 
         setDailyLosers(losers.map(s => ({
           symbol: s.symbol,
-          name: s.symbol, // Yahoo doesn't return name, use symbol
+          name: s.symbol,
           price: s.price,
           change: s.changePercent,
         })));
       } else {
-        console.warn('No S&P 500 data received');
         setError('Using cached data');
       }
     } catch (err) {
@@ -119,14 +119,20 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
     fetchData();
   }, [fetchData]);
 
-  // Listen for global refresh
   useEffect(() => {
     if (refreshKey > 0) {
       fetchData();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get movers based on timeframe
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.SP500);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
+
   const getMovers = (): Mover[] => {
     if (timeFrame === 'daily') {
       return showGainers ? dailyGainers : dailyLosers;
@@ -146,12 +152,13 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
   return (
     <Card
       title={t('sp500TopMovers')}
+      compact
       headerAction={
         <div className="flex items-center gap-1">
           <button
             onClick={fetchData}
             disabled={isLoading}
-            className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all mr-1"
+            className="p-1 rounded text-neutral-500 hover:text-neutral-300 transition-colors mr-1"
             title="Refresh"
           >
             <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
@@ -160,10 +167,10 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
             <button
               key={tf}
               onClick={() => setTimeFrame(tf)}
-              className={`px-2.5 py-1 text-xs rounded transition-all ${
+              className={`px-2 py-0.5 text-[10px] rounded transition-all ${
                 timeFrame === tf
-                  ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
-                  : 'text-gray-500 hover:text-gray-300'
+                  ? 'bg-accent-green/15 text-accent-green border border-accent-green/25'
+                  : 'text-neutral-500 hover:text-neutral-300'
               }`}
             >
               {timeFrameLabels[tf].charAt(0).toUpperCase()}
@@ -173,23 +180,23 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
       }
     >
       {/* Toggle */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-1.5 mb-3">
         <button
           onClick={() => setShowGainers(true)}
-          className={`flex-1 py-2.5 text-sm rounded flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 py-2 text-xs rounded-md flex items-center justify-center gap-1.5 transition-all ${
             showGainers
-              ? 'bg-neon-green/15 text-neon-green border border-neon-green/30'
-              : 'bg-terminal-border/50 text-gray-500 border border-transparent hover:border-terminal-border'
+              ? 'bg-accent-green/10 text-accent-green border border-accent-green/25'
+              : 'bg-terminal-card-hover text-neutral-500 border border-transparent hover:border-terminal-border'
           }`}
         >
           <IoTrendingUp /> {t('topGainers')}
         </button>
         <button
           onClick={() => setShowGainers(false)}
-          className={`flex-1 py-2.5 text-sm rounded flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 py-2 text-xs rounded-md flex items-center justify-center gap-1.5 transition-all ${
             !showGainers
-              ? 'bg-neon-red/15 text-neon-red border border-neon-red/30'
-              : 'bg-terminal-border/50 text-gray-500 border border-transparent hover:border-terminal-border'
+              ? 'bg-accent-red/10 text-accent-red border border-accent-red/25'
+              : 'bg-terminal-card-hover text-neutral-500 border border-transparent hover:border-terminal-border'
           }`}
         >
           <IoTrendingDown /> {t('topLosers')}
@@ -198,51 +205,47 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
 
       {/* Content */}
       {isLoading && movers.length === 0 ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="w-6 h-6 border-2 border-neon-cyan/30 border-t-neon-cyan rounded-full animate-spin"></div>
+        <div className="flex items-center justify-center py-6">
+          <div className="w-5 h-5 border-2 border-accent-cyan/30 border-t-accent-cyan rounded-full animate-spin"></div>
         </div>
       ) : error && movers.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-xs text-neon-red">{error}</p>
-          <button onClick={fetchData} className="mt-2 text-xs text-gray-400 hover:text-white">
+        <div className="text-center py-6">
+          <p className="text-xs text-accent-red">{error}</p>
+          <button onClick={fetchData} className="mt-2 text-xs text-neutral-400 hover:text-white">
             Try again
           </button>
         </div>
       ) : (
         <>
-          {/* Table */}
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="w-16">{t('symbol')}</th>
-                <th>{t('name')}</th>
-                <th className="text-right">{t('price')}</th>
-                <th className="text-right">{t('change')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movers.slice(0, 5).map((stock) => (
-                <tr
-                  key={stock.symbol}
-                  onClick={() => onStockClick?.(stock.symbol)}
-                  className="cursor-pointer hover:bg-terminal-border/30 transition-colors"
-                >
-                  <td className="font-mono text-neon-cyan">{stock.symbol}</td>
-                  <td className="text-gray-400 truncate max-w-[100px]">{stock.name}</td>
-                  <td className="text-right font-mono">${stock.price.toFixed(2)}</td>
-                  <td className={`text-right font-mono ${
-                    stock.change >= 0 ? 'value-positive' : 'value-negative'
+          <div className="space-y-1">
+            {movers.slice(0, 5).map((stock, index) => (
+              <motion.button
+                key={stock.symbol}
+                onClick={() => onStockClick?.(stock.symbol)}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="w-full flex items-center justify-between p-2 rounded-md bg-terminal-card-hover/30 hover:bg-terminal-card-hover border border-transparent hover:border-terminal-border transition-all duration-150 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-accent-cyan">{stock.symbol}</span>
+                  <span className="text-xs text-neutral-400 truncate max-w-[80px]">{stock.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xs text-neutral-300">${stock.price.toFixed(2)}</span>
+                  <span className={`font-mono text-xs font-medium ${
+                    stock.change >= 0 ? 'text-accent-green' : 'text-accent-red'
                   }`}>
                     {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                </div>
+              </motion.button>
+            ))}
+          </div>
 
           {timeFrame !== 'daily' && (
             <div className="text-center mt-2">
-              <span className="text-[10px] text-neon-amber">Sample data</span>
+              <span className="text-[11px] text-accent-amber">Sample data</span>
             </div>
           )}
         </>

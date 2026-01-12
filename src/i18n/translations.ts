@@ -25,6 +25,7 @@ export const translations = {
     treasuryYields: 'Treasury Yields',
     commodities: 'Commodities',
     economicCalendar: 'Economic Calendar',
+    marketSentiment: 'Market Sentiment',
 
     // Sector Names
     sectors: {
@@ -158,6 +159,12 @@ export const translations = {
     preMarket: 'PRE-MARKET',
     afterHours: 'AFTER-HOURS',
     futures: 'FUTURES',
+
+    // Drag and Drop
+    dragToReorder: 'Drag to reorder',
+    resetLayout: 'Reset Layout',
+    editLayout: 'Edit Layout',
+    editModeHint: 'Drag and drop widgets to rearrange them',
   },
 
   tr: {
@@ -184,6 +191,7 @@ export const translations = {
     treasuryYields: 'Hazine Faizleri',
     commodities: 'Emtialar',
     economicCalendar: 'Ekonomik Takvim',
+    marketSentiment: 'Piyasa Duyarlılığı',
 
     // Sector Names
     sectors: {
@@ -317,6 +325,12 @@ export const translations = {
     preMarket: 'ÖN-PİYASA',
     afterHours: 'MESAİ SONRASI',
     futures: 'VADELİ',
+
+    // Drag and Drop
+    dragToReorder: 'Sürükle ve bırak',
+    resetLayout: 'Düzeni Sıfırla',
+    editLayout: 'Düzenle',
+    editModeHint: 'Widget\'ları sürükleyip bırakarak yerlerini değiştirebilirsiniz',
   },
 } as const;
 

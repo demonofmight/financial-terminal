@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoAddCircleOutline, IoCloseCircle, IoSettingsOutline, IoRefresh } from 'react-icons/io5';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../i18n';
 import { fetchCryptoMarketData, fetchTopCryptos } from '../../services/api/coingecko';
 import { useCryptoWatchlist } from '../../hooks/useMarketData';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 import type { CryptoData } from '../../types';
 
 interface CryptoOption {
@@ -20,6 +22,8 @@ interface CryptoTrackerProps {
 export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
   const { t } = useLanguage();
   const { refreshKey } = useRefresh();
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const { cryptos: selectedCryptoIds, add: addCryptoToWatchlist, remove: removeCryptoFromWatchlist } = useCryptoWatchlist();
 
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
@@ -29,7 +33,6 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch crypto data
   const fetchData = useCallback(async () => {
     if (selectedCryptoIds.length === 0) {
       setCryptoData([]);
@@ -51,7 +54,6 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
     }
   }, [selectedCryptoIds]);
 
-  // Fetch available cryptos for adding
   const fetchAvailable = useCallback(async () => {
     try {
       const topCryptos = await fetchTopCryptos(50);
@@ -67,24 +69,29 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
     }
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Listen for global refresh
   useEffect(() => {
     if (refreshKey > 0) {
       fetchData();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch available when settings open
   useEffect(() => {
     if (showSettings && availableCryptos.length === 0) {
       fetchAvailable();
     }
   }, [showSettings, availableCryptos.length, fetchAvailable]);
+
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.CRYPTO);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
 
   const handleRemove = async (id: string) => {
     await removeCryptoFromWatchlist(id);
@@ -98,13 +105,14 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
   return (
     <Card
       title={t('cryptoTracker')}
+      compact
       headerAction={
         <div className="flex items-center gap-1">
           {!showSettings && (
             <button
               onClick={fetchData}
               disabled={isLoading}
-              className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
+              className="p-1 rounded text-neutral-500 hover:text-neutral-300 transition-colors"
               title="Refresh"
             >
               <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
@@ -112,8 +120,8 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
           )}
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`p-1.5 rounded transition-all ${
-              showSettings ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-500 hover:text-gray-300'
+            className={`p-1 rounded transition-colors ${
+              showSettings ? 'bg-accent-cyan/20 text-accent-cyan' : 'text-neutral-500 hover:text-neutral-300'
             }`}
           >
             <IoSettingsOutline className="text-sm" />
@@ -122,9 +130,9 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
       }
     >
       {showSettings ? (
-        <div className="space-y-3">
-          <div className="text-xs text-gray-500 uppercase tracking-wider">{t('addCryptocurrency')}</div>
-          <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto scrollbar-thin">
+        <div className="space-y-2">
+          <div className="text-[10px] text-neutral-500 uppercase tracking-wider">{t('addCryptocurrency')}</div>
+          <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto">
             {availableCryptos
               .filter(ac => !selectedCryptoIds.includes(ac.id))
               .slice(0, 20)
@@ -132,52 +140,52 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
                 <button
                   key={crypto.id}
                   onClick={() => handleAdd(crypto)}
-                  className="flex items-center gap-2 p-2 rounded bg-terminal-border/30 hover:bg-terminal-border/50 transition-all text-xs"
+                  className="flex items-center gap-1.5 p-1.5 rounded-md bg-terminal-card-hover hover:bg-terminal-border transition-colors text-[11px]"
                 >
-                  <IoAddCircleOutline className="text-neon-green" />
-                  <span className="text-neon-cyan">{crypto.symbol}</span>
-                  <span className="text-gray-500 truncate">{crypto.name}</span>
+                  <IoAddCircleOutline className="text-accent-green" />
+                  <span className="text-accent-cyan">{crypto.symbol.toUpperCase()}</span>
+                  <span className="text-neutral-500 truncate">{crypto.name}</span>
                 </button>
               ))}
           </div>
           <button
             onClick={() => setShowSettings(false)}
-            className="w-full py-2 text-xs text-gray-400 border border-terminal-border rounded hover:border-gray-500 transition-all"
+            className="w-full py-1.5 text-[10px] text-neutral-400 border border-terminal-border rounded-md hover:border-neutral-600 transition-colors"
           >
             {t('done')}
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {isLoading && cryptoData.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-neon-cyan/30 border-t-neon-cyan rounded-full animate-spin"></div>
+            <div className="flex items-center justify-center py-6">
+              <div className="w-5 h-5 border-2 border-accent-cyan/30 border-t-accent-cyan rounded-full animate-spin"></div>
             </div>
           ) : error ? (
             <div className="text-center py-4">
-              <p className="text-xs text-neon-red">{error}</p>
-              <button
-                onClick={fetchData}
-                className="mt-2 text-xs text-gray-400 hover:text-white"
-              >
+              <p className="text-xs text-accent-red">{error}</p>
+              <button onClick={fetchData} className="mt-2 text-xs text-neutral-400 hover:text-white">
                 Try again
               </button>
             </div>
           ) : (
-            cryptoData.map((crypto) => (
-              <div
+            cryptoData.map((crypto, index) => (
+              <motion.div
                 key={crypto.id}
-                className="flex items-center justify-between p-3 rounded bg-terminal-border/30 hover:bg-terminal-border/50 transition-all group cursor-pointer"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="flex items-center justify-between p-2 rounded-md bg-terminal-card-hover hover:bg-terminal-border transition-colors group cursor-pointer"
                 onClick={() => !editMode && onCryptoClick?.(crypto.id)}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {editMode && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemove(crypto.id);
                       }}
-                      className="text-neon-red hover:scale-110 transition-transform"
+                      className="text-accent-red hover:scale-110 transition-transform"
                     >
                       <IoCloseCircle />
                     </button>
@@ -185,45 +193,45 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
                   <img
                     src={crypto.image}
                     alt={crypto.name}
-                    className="w-6 h-6 rounded-full"
+                    className="w-5 h-5 rounded-full"
                   />
                   <div>
-                    <div className="text-sm font-medium text-white">{crypto.name}</div>
-                    <div className="text-xs text-gray-500 font-mono uppercase">{crypto.symbol}</div>
+                    <div className="text-xs font-medium text-neutral-200">{crypto.name}</div>
+                    <div className="text-[10px] text-neutral-500 font-mono uppercase">{crypto.symbol}</div>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className="font-mono text-base text-white">
+                  <div className="font-mono text-xs text-neutral-200">
                     ${crypto.current_price.toLocaleString('en-US', {
                       minimumFractionDigits: crypto.current_price < 1 ? 4 : 2,
                       maximumFractionDigits: crypto.current_price < 1 ? 4 : 2,
                     })}
                   </div>
-                  <div className={`font-mono text-sm ${
-                    crypto.price_change_percentage_24h >= 0 ? 'value-positive' : 'value-negative'
+                  <div className={`font-mono text-[10px] ${
+                    crypto.price_change_percentage_24h >= 0 ? 'text-accent-green' : 'text-accent-red'
                   }`}>
-                    {crypto.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(crypto.price_change_percentage_24h).toFixed(2)}%
+                    {crypto.price_change_percentage_24h >= 0 ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-1.5 pt-1.5">
             <button
               onClick={() => setEditMode(!editMode)}
-              className={`flex-1 py-2 text-xs rounded transition-all ${
+              className={`flex-1 py-1.5 text-[10px] rounded-md transition-colors ${
                 editMode
-                  ? 'bg-neon-red/20 text-neon-red border border-neon-red/30'
-                  : 'text-gray-500 border border-terminal-border hover:border-gray-500'
+                  ? 'bg-accent-red/10 text-accent-red border border-accent-red/25'
+                  : 'text-neutral-500 border border-terminal-border hover:border-neutral-600'
               }`}
             >
               {editMode ? t('done') : t('edit')}
             </button>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-1 py-2 text-xs text-gray-500 border border-terminal-border rounded hover:border-gray-500 transition-all"
+              className="flex-1 py-1.5 text-[10px] text-neutral-500 border border-terminal-border rounded-md hover:border-neutral-600 transition-colors"
             >
               + {t('add')}
             </button>

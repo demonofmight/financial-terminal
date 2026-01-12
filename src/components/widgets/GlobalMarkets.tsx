@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoGlobeOutline, IoRefresh } from 'react-icons/io5';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../i18n';
 import { fetchGlobalIndices, fetchUSFutures } from '../../services/api/yahoo';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 import { getMarketStatus as getCentralMarketStatus, getAsiaGroupedStatus, type MarketStatus } from '../../utils/marketHours';
 import type { QuoteData } from '../../services/api/yahoo';
 
@@ -17,7 +19,6 @@ interface MarketIndex {
   isFutures?: boolean;
 }
 
-// Index name and region mappings
 const indexInfo: Record<string, { name: string; region: string }> = {
   '^GSPC': { name: 'S&P 500', region: 'US' },
   '^DJI': { name: 'Dow Jones', region: 'US' },
@@ -30,26 +31,18 @@ const indexInfo: Record<string, { name: string; region: string }> = {
   '^KS11': { name: 'KOSPI', region: 'KR' },
 };
 
-// US Futures mappings (for extended hours trading) - CFD-style naming
 const futuresInfo: Record<string, { name: string; displaySymbol: string }> = {
   'ES=F': { name: 'US500', displaySymbol: 'US500' },
   'NQ=F': { name: 'US100', displaySymbol: 'US100' },
   'YM=F': { name: 'US30', displaySymbol: 'US30' },
 };
 
-// Sort order for US indices (30, 100, 500)
 const usIndexOrder: Record<string, number> = {
-  // Futures
-  'US30': 1, 'YM': 1,
-  'US100': 2, 'NQ': 2,
-  'US500': 3, 'ES': 3,
-  // Regular indices
-  'DJI': 1, '^DJI': 1,
-  'IXIC': 2, '^IXIC': 2,
-  'GSPC': 3, '^GSPC': 3,
+  'US30': 1, 'YM': 1, 'DJI': 1, '^DJI': 1,
+  'US100': 2, 'NQ': 2, 'IXIC': 2, '^IXIC': 2,
+  'US500': 3, 'ES': 3, 'GSPC': 3, '^GSPC': 3,
 };
 
-// Fallback mock data (US in 30-100-500 order)
 const mockGlobalMarkets: MarketIndex[] = [
   { symbol: 'US30', name: 'US30', region: 'US', value: 38654.42, change: 0.67, status: 'open' },
   { symbol: 'US100', name: 'US100', region: 'US', value: 16156.33, change: 1.24, status: 'open' },
@@ -73,25 +66,17 @@ const regionColors: Record<string, string> = {
 };
 
 const statusLabels: Record<MarketStatus, { text: string; class: string }> = {
-  open: { text: 'LIVE', class: 'text-neon-green' },
-  closed: { text: 'CLOSED', class: 'text-gray-500' },
-  pre: { text: 'PRE-MARKET', class: 'text-neon-amber' },
-  post: { text: 'AFTER-HRS', class: 'text-neon-cyan' },
-  futures: { text: 'FUTURES', class: 'text-purple-400' },
+  open: { text: 'LIVE', class: 'text-accent-green' },
+  closed: { text: 'CLOSED', class: 'text-neutral-500' },
+  pre: { text: 'PRE-MKT', class: 'text-accent-amber' },
+  post: { text: 'AFTER', class: 'text-accent-cyan' },
+  futures: { text: 'FUTURES', class: 'text-accent-purple' },
 };
 
-// Region to market ID mapping for centralized status
 const regionToMarketId: Record<string, string> = {
-  US: 'US',
-  DE: 'EU',
-  UK: 'EU',
-  FR: 'EU',
-  JP: 'TOKYO',     // Per-exchange status
-  HK: 'HONGKONG',  // Per-exchange status
-  KR: 'SEOUL',     // Per-exchange status
+  US: 'US', DE: 'EU', UK: 'EU', FR: 'EU', JP: 'TOKYO', HK: 'HONGKONG', KR: 'SEOUL',
 };
 
-// Determine market status based on current time using centralized utility
 function getMarketStatus(region: string): MarketStatus {
   const marketId = regionToMarketId[region] || 'US';
   const statusInfo = getCentralMarketStatus(marketId);
@@ -105,6 +90,8 @@ interface GlobalMarketsProps {
 export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
   const { t } = useLanguage();
   const { refreshKey } = useRefresh();
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const [markets, setMarkets] = useState<MarketIndex[]>(mockGlobalMarkets);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,16 +101,13 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
     setError(null);
 
     try {
-      // Check US market status to determine if we should fetch futures
       const usMarketStatus = getCentralMarketStatus('US');
       const isExtendedHours = usMarketStatus.status === 'pre' ||
                               usMarketStatus.status === 'post' ||
                               usMarketStatus.status === 'futures';
 
-      // Fetch global indices (always fetch all)
       const indicesData = await fetchGlobalIndices();
 
-      // Separate US and non-US indices
       const usIndices = indicesData.filter((q: QuoteData) =>
         q.symbol === '^GSPC' || q.symbol === '^DJI' || q.symbol === '^IXIC'
       );
@@ -131,7 +115,6 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
         q.symbol !== '^GSPC' && q.symbol !== '^DJI' && q.symbol !== '^IXIC'
       );
 
-      // Process non-US indices (Europe + Asia)
       const processedNonUS: MarketIndex[] = nonUSIndices.map((quote: QuoteData) => {
         const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
         return {
@@ -144,7 +127,6 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
         };
       });
 
-      // Handle US data - try futures during extended hours, fallback to indices
       let usMarketData: MarketIndex[] = [];
 
       if (isExtendedHours) {
@@ -163,14 +145,12 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
                 isFutures: true,
               };
             });
-            console.log('[GlobalMarkets] Using futures data for US:', usMarketData.length);
           }
         } catch (futuresErr) {
           console.warn('[GlobalMarkets] Futures fetch failed, using indices:', futuresErr);
         }
       }
 
-      // Fallback to regular indices if no futures data
       if (usMarketData.length === 0) {
         usMarketData = usIndices.map((quote: QuoteData) => {
           const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
@@ -185,19 +165,16 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
         });
       }
 
-      // Sort US data by index order (30, 100, 500)
       usMarketData.sort((a, b) => {
         const orderA = usIndexOrder[a.symbol] || 99;
         const orderB = usIndexOrder[b.symbol] || 99;
         return orderA - orderB;
       });
 
-      // Combine: US first (sorted), then non-US
       setMarkets([...usMarketData, ...processedNonUS]);
     } catch (err) {
       console.error('Failed to fetch global markets:', err);
       setError('Failed to load');
-      // Keep mock data as fallback
     } finally {
       setIsLoading(false);
     }
@@ -207,50 +184,58 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
     fetchData();
   }, [fetchData]);
 
-  // Listen for global refresh
   useEffect(() => {
     if (refreshKey > 0) {
       fetchData();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Group by region
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.GLOBAL_MARKETS);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
+
   const americas = markets.filter(m => m.region === 'US');
   const europe = markets.filter(m => ['DE', 'UK', 'FR'].includes(m.region));
   const asia = markets.filter(m => ['JP', 'HK', 'KR'].includes(m.region));
 
-  const renderIndex = (index: MarketIndex) => (
-    <button
+  const renderIndex = (index: MarketIndex, i: number) => (
+    <motion.button
       key={index.symbol}
       onClick={() => onIndexClick?.(index.symbol)}
-      className="flex items-center justify-between p-2.5 rounded bg-terminal-border/20 hover:bg-terminal-border/40 transition-all text-left w-full"
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.03 }}
+      className="flex items-center justify-between p-2 rounded-md bg-terminal-card-hover/30 hover:bg-terminal-card-hover border border-transparent hover:border-terminal-border transition-all duration-150 text-left w-full"
     >
       <div className="flex items-center gap-2">
-        <span className={`text-xs font-bold ${regionColors[index.region]}`}>
+        <span className={`text-[10px] font-bold ${regionColors[index.region]}`}>
           {index.isFutures ? 'FUT' : index.region}
         </span>
         <div>
-          <div className="text-sm text-white font-medium">
+          <div className="text-xs text-neutral-200 font-medium">
             {index.name}
             {index.isFutures && (
-              <span className="ml-1 text-[10px] text-purple-400">(LIVE)</span>
+              <span className="ml-1 text-[11px] text-accent-purple">(LIVE)</span>
             )}
           </div>
-          <div className="text-xs text-gray-500 font-mono">{index.symbol}</div>
+          <div className="text-[10px] text-neutral-500 font-mono">{index.symbol}</div>
         </div>
       </div>
       <div className="text-right">
-        <div className="text-sm font-mono text-white">
+        <div className="text-xs font-mono text-neutral-200">
           {index.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
         </div>
-        <div className={`text-xs font-mono ${index.change >= 0 ? 'value-positive' : 'value-negative'}`}>
-          {index.change >= 0 ? '▲' : '▼'} {Math.abs(index.change).toFixed(2)}%
+        <div className={`text-[10px] font-mono ${index.change >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+          {index.change >= 0 ? '+' : ''}{index.change.toFixed(2)}%
         </div>
       </div>
-    </button>
+    </motion.button>
   );
 
-  // Get overall status for each region
   const getRegionStatus = (regionMarkets: MarketIndex[]): MarketStatus => {
     if (regionMarkets.length === 0) return 'closed';
     return regionMarkets[0]?.status || 'closed';
@@ -259,40 +244,41 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
   return (
     <Card
       title={t('globalMarkets')}
+      compact
       headerAction={
         <div className="flex items-center gap-2">
           <button
             onClick={fetchData}
             disabled={isLoading}
-            className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
+            className="p-1 rounded text-neutral-500 hover:text-neutral-300 transition-colors"
             title="Refresh"
           >
             <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          <div className="flex items-center gap-1 text-[10px]">
-            <IoGlobeOutline className="text-neon-cyan" />
-            <span className="text-gray-500">{markets.length} {t('indices')}</span>
+          <div className="flex items-center gap-1 text-[11px]">
+            <IoGlobeOutline className="text-accent-cyan" />
+            <span className="text-neutral-500">{markets.length}</span>
           </div>
         </div>
       }
     >
       {isLoading && markets === mockGlobalMarkets ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="w-6 h-6 border-2 border-neon-cyan/30 border-t-neon-cyan rounded-full animate-spin"></div>
+        <div className="flex items-center justify-center py-6">
+          <div className="w-5 h-5 border-2 border-accent-cyan/30 border-t-accent-cyan rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Americas */}
           {americas.length > 0 && (
             <div>
-              <div className="text-[10px] text-blue-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <span>🇺🇸</span> {t('americas')}
+              <div className="text-[11px] text-blue-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <span>US</span>
                 <span className={`ml-auto ${statusLabels[getRegionStatus(americas)].class}`}>
-                  ● {statusLabels[getRegionStatus(americas)].text}
+                  {statusLabels[getRegionStatus(americas)].text}
                 </span>
               </div>
-              <div className="space-y-1">
-                {americas.map(renderIndex)}
+              <div className="space-y-0.5">
+                {americas.map((idx, i) => renderIndex(idx, i))}
               </div>
             </div>
           )}
@@ -300,31 +286,31 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
           {/* Europe */}
           {europe.length > 0 && (
             <div>
-              <div className="text-[10px] text-yellow-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <span>🇪🇺</span> {t('europe')}
+              <div className="text-[11px] text-yellow-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <span>EU</span>
                 <span className={`ml-auto ${statusLabels[getRegionStatus(europe)].class}`}>
-                  ● {statusLabels[getRegionStatus(europe)].text}
+                  {statusLabels[getRegionStatus(europe)].text}
                 </span>
               </div>
-              <div className="space-y-1">
-                {europe.map(renderIndex)}
+              <div className="space-y-0.5">
+                {europe.map((idx, i) => renderIndex(idx, americas.length + i))}
               </div>
             </div>
           )}
 
-          {/* Asia - Per-exchange status */}
+          {/* Asia */}
           {asia.length > 0 && (() => {
             const asiaStatus = getAsiaGroupedStatus();
             return (
               <div>
-                <div className="text-[10px] text-pink-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <span>🌏</span> {t('asiaPacific')}
-                  <span className={`ml-auto ${asiaStatus.statusClass}`}>
-                    ● {asiaStatus.statusText}
+                <div className="text-[11px] text-pink-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <span>ASIA</span>
+                  <span className={`ml-auto ${asiaStatus.statusClass.replace('text-neon-', 'text-accent-')}`}>
+                    {asiaStatus.statusText}
                   </span>
                 </div>
-                <div className="space-y-1">
-                  {asia.map(renderIndex)}
+                <div className="space-y-0.5">
+                  {asia.map((idx, i) => renderIndex(idx, americas.length + europe.length + i))}
                 </div>
               </div>
             );
@@ -332,7 +318,7 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
 
           {error && (
             <div className="text-center mt-2">
-              <span className="text-[10px] text-neon-amber">Using cached data</span>
+              <span className="text-[11px] text-accent-amber">Using cached data</span>
             </div>
           )}
         </div>

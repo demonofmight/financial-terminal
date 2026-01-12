@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../i18n';
 import { fetchSectorPerformance } from '../../services/api/yahoo';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 import { isMarketOpen } from '../../utils/marketHours';
 import { DataTimestamp } from '../ui/DataTimestamp';
 
@@ -13,7 +15,6 @@ interface Sector {
   change: number;
 }
 
-// Fallback mock data (including Defense)
 const mockSectors: Sector[] = [
   { symbol: 'XLK', name: 'Technology', change: 2.34 },
   { symbol: 'XLV', name: 'Healthcare', change: 1.12 },
@@ -29,9 +30,6 @@ const mockSectors: Sector[] = [
   { symbol: 'ITA', name: 'Aerospace & Defense', change: 1.45 },
 ];
 
-/**
- * Safe number helper - returns 0 if value is undefined, null, NaN, or Infinity
- */
 function safeNumber(value: number | undefined | null, defaultValue: number = 0): number {
   if (value === undefined || value === null || isNaN(value) || !isFinite(value)) {
     return defaultValue;
@@ -42,13 +40,13 @@ function safeNumber(value: number | undefined | null, defaultValue: number = 0):
 function getColorIntensity(change: number): string {
   const absChange = Math.abs(change);
   if (change > 0) {
-    if (absChange > 2) return 'bg-neon-green/40 border-neon-green/60';
-    if (absChange > 1) return 'bg-neon-green/25 border-neon-green/40';
-    return 'bg-neon-green/15 border-neon-green/25';
+    if (absChange > 2) return 'bg-accent-green/30 border-accent-green/40';
+    if (absChange > 1) return 'bg-accent-green/20 border-accent-green/30';
+    return 'bg-accent-green/10 border-accent-green/20';
   } else {
-    if (absChange > 2) return 'bg-neon-red/40 border-neon-red/60';
-    if (absChange > 1) return 'bg-neon-red/25 border-neon-red/40';
-    return 'bg-neon-red/15 border-neon-red/25';
+    if (absChange > 2) return 'bg-accent-red/30 border-accent-red/40';
+    if (absChange > 1) return 'bg-accent-red/20 border-accent-red/30';
+    return 'bg-accent-red/10 border-accent-red/20';
   }
 }
 
@@ -59,6 +57,8 @@ interface SectorHeatmapProps {
 export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
   const { t } = useLanguage();
   const { refreshKey } = useRefresh();
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const [sectors, setSectors] = useState<Sector[]>(mockSectors);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,31 +70,25 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
 
     try {
       const data = await fetchSectorPerformance();
-      console.log('Sector data received:', data);
 
-      // Map Yahoo Finance data (uses changePercent not changesPercentage)
       if (data && data.length > 0) {
         const sectorData = data.map(s => ({
           symbol: s.symbol,
-          name: s.symbol, // Name will come from translations
+          name: s.symbol,
           change: safeNumber(s.changePercent, 0),
         }));
-        // Sort by change percentage (highest to lowest)
         sectorData.sort((a, b) => b.change - a.change);
         setSectors(sectorData);
 
-        // Store the last trade time from first item (all should be similar)
         if (data[0].lastTradeTime) {
           setLastTradeTime(data[0].lastTradeTime);
         }
       } else {
-        console.warn('No sector data received, using mock data');
         setError('Using cached data');
       }
     } catch (err) {
       console.error('Failed to fetch sector data:', err);
       setError('Using cached data');
-      // Keep mock data as fallback
     } finally {
       setIsLoading(false);
     }
@@ -104,22 +98,29 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
     fetchData();
   }, [fetchData]);
 
-  // Listen for global refresh
   useEffect(() => {
     if (refreshKey > 0) {
       fetchData();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.SECTORS);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
+
   return (
     <Card
       title={t('sectorPerformance')}
-      className="col-span-2 row-span-2"
+      compact
       headerAction={
         <button
           onClick={fetchData}
           disabled={isLoading}
-          className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
+          className="p-1 rounded text-neutral-500 hover:text-neutral-300 transition-colors"
           title="Refresh"
         >
           <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
@@ -128,69 +129,64 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
     >
       {isLoading && sectors === mockSectors ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-6 h-6 border-2 border-neon-cyan/30 border-t-neon-cyan rounded-full animate-spin"></div>
+          <div className="w-5 h-5 border-2 border-accent-cyan/30 border-t-accent-cyan rounded-full animate-spin"></div>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-2">
-            {sectors.map((sector) => {
+          <div className="grid grid-cols-4 gap-1.5">
+            {sectors.map((sector, index) => {
               const change = safeNumber(sector.change, 0);
               return (
-                <button
+                <motion.button
                   key={sector.symbol}
                   onClick={() => onSectorClick?.(sector.symbol)}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.02 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className={`
-                    p-3 rounded border transition-all duration-200
+                    p-2.5 rounded-md border transition-colors duration-200
                     ${getColorIntensity(change)}
-                    hover:scale-[1.02] hover:z-10 relative group
+                    hover:border-neutral-600
                   `}
                 >
-                  <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">
                     {sector.symbol}
                   </div>
-                  <div className="text-sm font-medium text-white truncate">
+                  <div className="text-xs font-medium text-neutral-200 truncate">
                     {t(`sectors.${sector.symbol}`) || sector.name}
                   </div>
-                  <div className={`text-xl font-mono font-bold mt-1 ${
-                    change >= 0 ? 'value-positive' : 'value-negative'
+                  <div className={`text-lg font-mono font-bold mt-0.5 ${
+                    change >= 0 ? 'text-accent-green' : 'text-accent-red'
                   }`}>
                     {change >= 0 ? '+' : ''}{change.toFixed(2)}%
                   </div>
-
-                  {/* Hover glow effect */}
-                  <div className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                    style={{
-                      boxShadow: change >= 0
-                        ? '0 0 20px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1)'
-                        : '0 0 20px rgba(255, 51, 102, 0.3), inset 0 0 20px rgba(255, 51, 102, 0.1)'
-                    }}
-                  />
-                </button>
+                </motion.button>
               );
             })}
           </div>
 
           {/* Legend */}
-          <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-terminal-border">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className="w-3 h-3 rounded bg-neon-red/40"></div>
+          <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-terminal-border">
+            <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+              <div className="w-2.5 h-2.5 rounded bg-accent-red/30"></div>
               <span>{t('strongSell')}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className="w-3 h-3 rounded bg-neon-red/20"></div>
+            <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+              <div className="w-2.5 h-2.5 rounded bg-accent-red/15"></div>
               <span>{t('weak')}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className="w-3 h-3 rounded bg-neon-green/20"></div>
+            <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+              <div className="w-2.5 h-2.5 rounded bg-accent-green/15"></div>
               <span>{t('gaining')}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className="w-3 h-3 rounded bg-neon-green/40"></div>
+            <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+              <div className="w-2.5 h-2.5 rounded bg-accent-green/30"></div>
               <span>{t('strongBuy')}</span>
             </div>
           </div>
 
-          {/* Show timestamp when market is closed */}
           {!isMarketOpen('US') && lastTradeTime && (
             <div className="text-center mt-2">
               <DataTimestamp timestamp={lastTradeTime} />
@@ -199,7 +195,7 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
 
           {error && (
             <div className="text-center mt-2">
-              <span className="text-[10px] text-neon-amber">Using cached data</span>
+              <span className="text-[11px] text-accent-amber">Using cached data</span>
             </div>
           )}
         </>

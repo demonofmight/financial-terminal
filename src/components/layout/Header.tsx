@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { IoRefresh, IoTerminal } from 'react-icons/io5';
+import { IoRefresh } from 'react-icons/io5';
 import { HiStatusOnline } from 'react-icons/hi';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../i18n';
-import { fetchSP500Index } from '../../services/api/yahoo';
+import { fetchSP500Index, fetchPreciousMetals } from '../../services/api/yahoo';
 import { fetchCryptoMarketData } from '../../services/api/coingecko';
-import { fetchMetalPrice } from '../../services/api/goldapi';
 import { getMarketStatus, getAsiaGroupedStatus } from '../../utils/marketHours';
 import { MarketStatusTooltip } from '../ui/MarketStatusTooltip';
 import { AsiaMarketTooltip } from '../ui/AsiaMarketTooltip';
@@ -43,7 +43,6 @@ export function Header({
   // Fetch quick stats on mount
   const fetchQuickStats = useCallback(async () => {
     try {
-      // Fetch S&P 500 via Yahoo Finance
       const sp500Data = await fetchSP500Index();
       if (sp500Data) {
         setQuickStats(prev => ({
@@ -56,7 +55,6 @@ export function Header({
     }
 
     try {
-      // Fetch BTC
       const btcDataArray = await fetchCryptoMarketData(['bitcoin']);
       if (btcDataArray && btcDataArray.length > 0) {
         const btcData = btcDataArray[0];
@@ -70,12 +68,13 @@ export function Header({
     }
 
     try {
-      // Fetch Gold
-      const goldData = await fetchMetalPrice('XAU');
+      const metalsData = await fetchPreciousMetals();
+      // Find gold (GC=F) in the response
+      const goldData = metalsData.find(m => m.symbol === 'GC=F');
       if (goldData) {
         setQuickStats(prev => ({
           ...prev,
-          gold: { price: goldData.price, change: goldData.changesPercentage || 0 },
+          gold: { price: goldData.price, change: goldData.changePercent || 0 },
         }));
       }
     } catch (e) {
@@ -110,67 +109,74 @@ export function Header({
     });
   };
 
-  // Get market statuses using centralized utility
+  // Get market statuses
   const usStatus = getMarketStatus('US');
   const euStatus = getMarketStatus('EU');
-  const asiaGroupedStatus = getAsiaGroupedStatus(); // Per-exchange Asia status
+  const asiaGroupedStatus = getAsiaGroupedStatus();
   const bistStatus = getMarketStatus('BIST');
 
+  // Get status color class
+  const getStatusColor = (isOpen: boolean, hasExtended?: boolean) => {
+    if (isOpen) return 'text-accent-green';
+    if (hasExtended) return 'text-accent-amber';
+    return 'text-neutral-500';
+  };
+
   return (
-    <header className="sticky top-0 z-50 bg-terminal-bg/95 backdrop-blur-sm border-b border-terminal-border">
+    <header className="sticky top-0 z-50 bg-terminal-bg/98 backdrop-blur-sm border-b border-terminal-border">
       {/* Top Status Bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 text-xs border-b border-terminal-border/50 bg-gray-950/50">
-        <div className="flex items-center gap-4 text-gray-500">
+      <div className="flex items-center justify-between px-4 py-1 text-[11px] border-b border-terminal-border/50">
+        <div className="flex items-center gap-3 text-neutral-500">
           <span className="flex items-center gap-1.5">
-            <HiStatusOnline className="text-neon-green" />
-            <span className="text-neon-green">{t('live')}</span>
+            <HiStatusOnline className="text-accent-green text-xs" />
+            <span className="text-accent-green font-medium">{t('live')}</span>
           </span>
-          <span>|</span>
+          <span className="text-terminal-border">|</span>
           <MarketStatusTooltip marketId="US">
-            <span>
+            <span className="hover:text-neutral-300 transition-colors cursor-help">
               {t('usMarkets')}: {' '}
-              <span className={usStatus.statusClass}>
+              <span className={getStatusColor(usStatus.isOpen, usStatus.statusText.includes('Extended'))}>
                 {usStatus.statusText}
               </span>
             </span>
           </MarketStatusTooltip>
-          <span>|</span>
+          <span className="text-terminal-border">|</span>
           <MarketStatusTooltip marketId="EU">
-            <span>
+            <span className="hover:text-neutral-300 transition-colors cursor-help">
               EU: {' '}
-              <span className={euStatus.statusClass}>
+              <span className={getStatusColor(euStatus.isOpen)}>
                 {euStatus.isOpen ? t('open') : t('closed')}
               </span>
             </span>
           </MarketStatusTooltip>
-          <span>|</span>
+          <span className="text-terminal-border">|</span>
           <AsiaMarketTooltip asiaStatus={asiaGroupedStatus}>
-            <span>
+            <span className="hover:text-neutral-300 transition-colors cursor-help">
               Asia: {' '}
-              <span className={asiaGroupedStatus.statusClass}>
+              <span className={asiaGroupedStatus.statusClass.replace('text-neon-', 'text-accent-')}>
                 {asiaGroupedStatus.statusText}
               </span>
             </span>
           </AsiaMarketTooltip>
-          <span>|</span>
+          <span className="text-terminal-border">|</span>
           <MarketStatusTooltip marketId="BIST">
-            <span>
+            <span className="hover:text-neutral-300 transition-colors cursor-help">
               BIST: {' '}
-              <span className={bistStatus.statusClass}>
+              <span className={getStatusColor(bistStatus.isOpen)}>
                 {bistStatus.isOpen ? t('open') : t('closed')}
               </span>
             </span>
           </MarketStatusTooltip>
         </div>
-        <div className="flex items-center gap-4 text-gray-500">
+        <div className="flex items-center gap-3 text-neutral-500">
           {/* Language Switcher */}
-          <div className="flex items-center gap-1 border border-terminal-border rounded overflow-hidden">
+          <div className="flex items-center gap-0.5 border border-terminal-border rounded-md overflow-hidden">
             <button
               onClick={() => setLanguage('en')}
               className={`px-2 py-0.5 text-[10px] font-mono transition-all ${
                 language === 'en'
-                  ? 'bg-neon-cyan/20 text-neon-cyan'
-                  : 'text-gray-500 hover:text-gray-300'
+                  ? 'bg-accent-blue/20 text-accent-blue'
+                  : 'text-neutral-500 hover:text-neutral-300'
               }`}
             >
               EN
@@ -179,119 +185,119 @@ export function Header({
               onClick={() => setLanguage('tr')}
               className={`px-2 py-0.5 text-[10px] font-mono transition-all ${
                 language === 'tr'
-                  ? 'bg-neon-cyan/20 text-neon-cyan'
-                  : 'text-gray-500 hover:text-gray-300'
+                  ? 'bg-accent-blue/20 text-accent-blue'
+                  : 'text-neutral-500 hover:text-neutral-300'
               }`}
             >
               TR
             </button>
           </div>
-          <span>|</span>
+          <span className="text-terminal-border">|</span>
           <span>{formatDate(currentTime)}</span>
-          <span className="font-mono text-neon-cyan">{formatTime(currentTime)} UTC</span>
+          <span className="font-mono text-accent-cyan">{formatTime(currentTime)} UTC</span>
         </div>
       </div>
 
       {/* Main Header */}
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded bg-gradient-to-br from-neon-green/20 to-neon-cyan/20 flex items-center justify-center border border-neon-green/30">
-              <IoTerminal className="text-xl text-neon-green" />
-            </div>
-            <div>
-              <h1 className="text-xl font-display tracking-wider text-white flex items-center gap-2">
-                {t('appName')}
-                <span className="text-xs px-1.5 py-0.5 bg-neon-green/10 text-neon-green border border-neon-green/30 rounded">
-                  MVP
-                </span>
-              </h1>
-              <p className="text-xs text-gray-500 uppercase tracking-widest">
-                {t('appSubtitle')}
-              </p>
-            </div>
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          <motion.div
+            className="w-8 h-8 rounded-md bg-accent-green/10 flex items-center justify-center border border-accent-green/20"
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: 'spring', stiffness: 400 }}
+          >
+            <span className="text-accent-green font-bold text-sm">F</span>
+          </motion.div>
+          <div>
+            <h1 className="text-lg font-display tracking-wider text-white flex items-center gap-2">
+              {t('appName')}
+              <span className="text-[10px] px-1.5 py-0.5 bg-accent-green/10 text-accent-green border border-accent-green/20 rounded">
+                MVP
+              </span>
+            </h1>
+            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">
+              {t('appSubtitle')}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           {/* Quick Stats */}
-          <div className="hidden md:flex items-center gap-6 text-sm">
-            <div className="flex flex-col items-end">
-              <span className="text-gray-500 text-xs">S&P 500</span>
-              {quickStats.sp500 ? (
-                <span className={`font-mono ${quickStats.sp500.change >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
-                  {quickStats.sp500.price.toLocaleString('en-US', { maximumFractionDigits: 0 })}{' '}
-                  <span className="text-xs">
-                    {quickStats.sp500.change >= 0 ? '+' : ''}{quickStats.sp500.change.toFixed(2)}%
-                  </span>
-                </span>
-              ) : (
-                <span className="text-gray-500 font-mono">--</span>
-              )}
-            </div>
-            <div className="w-px h-8 bg-terminal-border"></div>
-            <div className="flex flex-col items-end">
-              <span className="text-gray-500 text-xs">BTC/USD</span>
-              {quickStats.btc ? (
-                <span className={`font-mono ${quickStats.btc.change >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
-                  {quickStats.btc.price.toLocaleString('en-US', { maximumFractionDigits: 0 })}{' '}
-                  <span className="text-xs">
-                    {quickStats.btc.change >= 0 ? '+' : ''}{quickStats.btc.change.toFixed(2)}%
-                  </span>
-                </span>
-              ) : (
-                <span className="text-gray-500 font-mono">--</span>
-              )}
-            </div>
-            <div className="w-px h-8 bg-terminal-border"></div>
-            <div className="flex flex-col items-end">
-              <span className="text-gray-500 text-xs">GOLD</span>
-              {quickStats.gold ? (
-                <span className={`font-mono ${quickStats.gold.change >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
-                  {quickStats.gold.price.toLocaleString('en-US', { maximumFractionDigits: 0 })}{' '}
-                  <span className="text-xs">
-                    {quickStats.gold.change >= 0 ? '+' : ''}{quickStats.gold.change.toFixed(2)}%
-                  </span>
-                </span>
-              ) : (
-                <span className="text-gray-500 font-mono">--</span>
-              )}
-            </div>
+          <div className="hidden md:flex items-center gap-4 text-sm">
+            <QuickStatItem
+              label="S&P 500"
+              value={quickStats.sp500?.price}
+              change={quickStats.sp500?.change}
+            />
+            <div className="w-px h-6 bg-terminal-border"></div>
+            <QuickStatItem
+              label="BTC"
+              value={quickStats.btc?.price}
+              change={quickStats.btc?.change}
+            />
+            <div className="w-px h-6 bg-terminal-border"></div>
+            <QuickStatItem
+              label="GOLD"
+              value={quickStats.gold?.price}
+              change={quickStats.gold?.change}
+            />
           </div>
 
           {/* Refresh Button */}
           <div className="flex items-center gap-3">
-            {/* Auto-refresh indicator */}
             {autoRefreshEnabled && timeUntilRefresh !== undefined && (
               <div className="hidden sm:flex items-center gap-2">
                 <button
                   onClick={() => onToggleAutoRefresh?.(!autoRefreshEnabled)}
-                  className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
+                  className="text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors"
                   title={autoRefreshEnabled ? t('autoRefreshOn') : t('autoRefreshOff')}
                 >
-                  <span className="text-neon-cyan">AUTO</span>
+                  <span className="text-accent-cyan">AUTO</span>
                 </button>
-                <span className="text-xs font-mono text-gray-400">
+                <span className="text-xs font-mono text-neutral-400">
                   {Math.floor(timeUntilRefresh / 60)}:{(timeUntilRefresh % 60).toString().padStart(2, '0')}
                 </span>
               </div>
             )}
             {lastUpdate && (
-              <span className="text-xs text-gray-500">
+              <span className="text-[10px] text-neutral-500 hidden sm:inline">
                 {t('updated')}: {formatTime(lastUpdate)}
               </span>
             )}
-            <button
+            <motion.button
               onClick={onRefresh}
               disabled={isLoading}
               className="terminal-btn-primary flex items-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{t('refresh')}</span>
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
     </header>
+  );
+}
+
+// Quick stat component
+function QuickStatItem({ label, value, change }: { label: string; value?: number; change?: number }) {
+  const changeColor = change !== undefined && change >= 0 ? 'text-accent-green' : 'text-accent-red';
+
+  return (
+    <div className="flex flex-col items-end">
+      <span className="text-neutral-500 text-[10px]">{label}</span>
+      {value !== undefined ? (
+        <span className={`font-mono text-xs ${changeColor}`}>
+          {value.toLocaleString('en-US', { maximumFractionDigits: 0 })}{' '}
+          <span className="text-[10px]">
+            {change !== undefined && (change >= 0 ? '+' : '')}{change?.toFixed(2)}%
+          </span>
+        </span>
+      ) : (
+        <span className="text-neutral-500 font-mono text-xs">--</span>
+      )}
+    </div>
   );
 }

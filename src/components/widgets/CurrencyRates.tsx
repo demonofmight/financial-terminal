@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchCurrencyRates } from '../../services/api/exchange';
 import { useRefresh } from '../../contexts/RefreshContext';
+import { useLoading, DATA_SOURCE_IDS } from '../../contexts/LoadingContext';
 
 interface CurrencyPair {
   pair: string;
@@ -39,6 +40,8 @@ interface CurrencyRatesProps {
 export function CurrencyRates({ onPairClick }: CurrencyRatesProps) {
   const { t } = useLanguage();
   const { refreshKey } = useRefresh();
+  const { markLoaded } = useLoading();
+  const hasMarkedLoaded = useRef(false);
   const [currencies, setCurrencies] = useState<CurrencyPair[]>(mockCurrencies);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +83,14 @@ export function CurrencyRates({ onPairClick }: CurrencyRatesProps) {
       fetchData();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark as loaded for initial loading screen
+  useEffect(() => {
+    if (!isLoading && !hasMarkedLoaded.current) {
+      markLoaded(DATA_SOURCE_IDS.CURRENCIES);
+      hasMarkedLoaded.current = true;
+    }
+  }, [isLoading, markLoaded]);
 
   return (
     <Card
