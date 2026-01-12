@@ -148,6 +148,16 @@ export const translations = {
     autoRefreshOn: 'Auto-refresh enabled',
     autoRefreshOff: 'Auto-refresh disabled',
     nextRefresh: 'Next refresh in',
+
+    // Market Status Countdown
+    closesIn: 'Closes in',
+    opensIn: 'Opens in',
+    preMarketIn: 'Pre-market in',
+    futuresIn: 'Futures in',
+    afterHoursIn: 'After-hours in',
+    preMarket: 'PRE-MARKET',
+    afterHours: 'AFTER-HOURS',
+    futures: 'FUTURES',
   },
 
   tr: {
@@ -297,6 +307,16 @@ export const translations = {
     autoRefreshOn: 'Otomatik yenileme açık',
     autoRefreshOff: 'Otomatik yenileme kapalı',
     nextRefresh: 'Sonraki yenileme',
+
+    // Market Status Countdown
+    closesIn: 'Kapanışa',
+    opensIn: 'Açılışa',
+    preMarketIn: 'Ön-piyasaya',
+    futuresIn: 'Vadeli işlemlere',
+    afterHoursIn: 'Mesai sonrasına',
+    preMarket: 'ÖN-PİYASA',
+    afterHours: 'MESAİ SONRASI',
+    futures: 'VADELİ',
   },
 } as const;
 

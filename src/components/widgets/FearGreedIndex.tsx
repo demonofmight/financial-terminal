@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchFearGreedIndex, getColorFromValue, type FearGreedData } from '../../services/api/feargreed';
+import { useRefresh } from '../../contexts/RefreshContext';
 
 interface FearGreedIndexProps {
   onClick?: () => void;
@@ -10,6 +11,7 @@ interface FearGreedIndexProps {
 
 export function FearGreedIndex({ onClick }: FearGreedIndexProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [data, setData] = useState<FearGreedData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,13 @@ export function FearGreedIndex({ onClick }: FearGreedIndexProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get translated label based on value
   const getLabel = (val: number) => {

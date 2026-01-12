@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { IoTrendingUp, IoTrendingDown, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchBISTData } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
 import type { QuoteData } from '../../services/api/yahoo';
 
 interface BISTStock {
@@ -75,6 +76,7 @@ interface BISTOverviewProps {
 
 export function BISTOverview({ onStockClick }: BISTOverviewProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [indexValue, setIndexValue] = useState(mockBistData.indexValue);
   const [indexChange, setIndexChange] = useState(mockBistData.indexChange);
   const [topGainers, setTopGainers] = useState<BISTStock[]>(mockBistData.topGainers);
@@ -122,6 +124,13 @@ export function BISTOverview({ onStockClick }: BISTOverviewProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const safeIndexChange = safeNumber(indexChange, 0);
   const isPositive = safeIndexChange >= 0;

@@ -3,6 +3,8 @@ import { Card } from '../ui/Card';
 import { IoGlobeOutline, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchGlobalIndices } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
+import { getMarketStatus as getCentralMarketStatus, type MarketStatus } from '../../utils/marketHours';
 import type { QuoteData } from '../../services/api/yahoo';
 
 interface MarketIndex {
@@ -11,7 +13,7 @@ interface MarketIndex {
   region: string;
   value: number;
   change: number;
-  status: 'open' | 'closed' | 'pre' | 'post';
+  status: MarketStatus;
 }
 
 // Index name and region mappings
@@ -49,52 +51,30 @@ const regionColors: Record<string, string> = {
   KR: 'text-purple-400',
 };
 
-const statusLabels: Record<string, { text: string; class: string }> = {
+const statusLabels: Record<MarketStatus, { text: string; class: string }> = {
   open: { text: 'LIVE', class: 'text-neon-green' },
   closed: { text: 'CLOSED', class: 'text-gray-500' },
-  pre: { text: 'PRE', class: 'text-neon-amber' },
-  post: { text: 'POST', class: 'text-neon-cyan' },
+  pre: { text: 'PRE-MARKET', class: 'text-neon-amber' },
+  post: { text: 'AFTER-HRS', class: 'text-neon-cyan' },
+  futures: { text: 'FUTURES', class: 'text-purple-400' },
 };
 
-// Determine market status based on current time
-function getMarketStatus(region: string): 'open' | 'closed' | 'pre' | 'post' {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  const utcMinutes = now.getUTCMinutes();
-  const time = utcHour + utcMinutes / 60;
+// Region to market ID mapping for centralized status
+const regionToMarketId: Record<string, string> = {
+  US: 'US',
+  DE: 'EU',
+  UK: 'EU',
+  FR: 'EU',
+  JP: 'ASIA',
+  HK: 'ASIA',
+  KR: 'ASIA',
+};
 
-  // Simplified market hours (UTC)
-  switch (region) {
-    case 'US':
-      // NYSE: 14:30 - 21:00 UTC
-      if (time >= 14.5 && time < 21) return 'open';
-      if (time >= 13 && time < 14.5) return 'pre';
-      if (time >= 21 && time < 22) return 'post';
-      return 'closed';
-    case 'DE':
-    case 'FR':
-      // EU: 08:00 - 16:30 UTC
-      if (time >= 8 && time < 16.5) return 'open';
-      return 'closed';
-    case 'UK':
-      // London: 08:00 - 16:30 UTC
-      if (time >= 8 && time < 16.5) return 'open';
-      return 'closed';
-    case 'JP':
-      // Tokyo: 00:00 - 06:00 UTC
-      if (time >= 0 && time < 6) return 'open';
-      return 'closed';
-    case 'HK':
-      // Hong Kong: 01:30 - 08:00 UTC
-      if (time >= 1.5 && time < 8) return 'open';
-      return 'closed';
-    case 'KR':
-      // Seoul: 00:00 - 06:30 UTC
-      if (time >= 0 && time < 6.5) return 'open';
-      return 'closed';
-    default:
-      return 'closed';
-  }
+// Determine market status based on current time using centralized utility
+function getMarketStatus(region: string): MarketStatus {
+  const marketId = regionToMarketId[region] || 'US';
+  const statusInfo = getCentralMarketStatus(marketId);
+  return statusInfo.status;
 }
 
 interface GlobalMarketsProps {
@@ -103,6 +83,7 @@ interface GlobalMarketsProps {
 
 export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [markets, setMarkets] = useState<MarketIndex[]>(mockGlobalMarkets);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +121,13 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
     fetchData();
   }, [fetchData]);
 
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Group by region
   const americas = markets.filter(m => m.region === 'US');
   const europe = markets.filter(m => ['DE', 'UK', 'FR'].includes(m.region));
@@ -172,7 +160,7 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
   );
 
   // Get overall status for each region
-  const getRegionStatus = (regionMarkets: MarketIndex[]): string => {
+  const getRegionStatus = (regionMarkets: MarketIndex[]): MarketStatus => {
     if (regionMarkets.length === 0) return 'closed';
     return regionMarkets[0]?.status || 'closed';
   };

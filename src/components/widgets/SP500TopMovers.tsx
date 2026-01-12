@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { IoTrendingUp, IoTrendingDown, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchSP500TopMovers } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
 
 type TimeFrame = 'daily' | 'weekly' | 'monthly';
 
@@ -72,6 +73,7 @@ interface SP500TopMoversProps {
 
 export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('daily');
   const [showGainers, setShowGainers] = useState(true);
   const [dailyGainers, setDailyGainers] = useState<Mover[]>(mockDailyGainers);
@@ -116,6 +118,13 @@ export function SP500TopMovers({ onStockClick }: SP500TopMoversProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get movers based on timeframe
   const getMovers = (): Mover[] => {

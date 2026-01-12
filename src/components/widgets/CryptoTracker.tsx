@@ -4,6 +4,7 @@ import { IoAddCircleOutline, IoCloseCircle, IoSettingsOutline, IoRefresh } from 
 import { useLanguage } from '../../i18n';
 import { fetchCryptoMarketData, fetchTopCryptos } from '../../services/api/coingecko';
 import { useCryptoWatchlist } from '../../hooks/useMarketData';
+import { useRefresh } from '../../contexts/RefreshContext';
 import type { CryptoData } from '../../types';
 
 interface CryptoOption {
@@ -18,6 +19,7 @@ interface CryptoTrackerProps {
 
 export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const { cryptos: selectedCryptoIds, add: addCryptoToWatchlist, remove: removeCryptoFromWatchlist } = useCryptoWatchlist();
 
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
@@ -69,6 +71,13 @@ export function CryptoTracker({ onCryptoClick }: CryptoTrackerProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available when settings open
   useEffect(() => {

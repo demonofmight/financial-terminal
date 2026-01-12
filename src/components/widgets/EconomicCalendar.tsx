@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { IoCalendar, IoAlertCircle, IoTime, IoRefresh, IoInformationCircle } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchEconomicCalendar, type EconomicCalendarEvent } from '../../services/api/fmp';
+import { useRefresh } from '../../contexts/RefreshContext';
 
 interface ProcessedEvent {
   id: string;
@@ -425,6 +426,7 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
 
 export function EconomicCalendar() {
   const { t, language } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [events, setEvents] = useState<ProcessedEvent[]>(mockEvents);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -455,6 +457,13 @@ export function EconomicCalendar() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const highImpactCount = events.filter(e => e.impact === 'high').length;
   const nextHighImpact = events.find(e => e.impact === 'high');

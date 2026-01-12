@@ -5,6 +5,8 @@ import { useLanguage } from '../../i18n';
 import { fetchSP500Index } from '../../services/api/yahoo';
 import { fetchCryptoMarketData } from '../../services/api/coingecko';
 import { fetchMetalPrice } from '../../services/api/goldapi';
+import { getMarketStatus } from '../../utils/marketHours';
+import { MarketStatusTooltip } from '../ui/MarketStatusTooltip';
 
 interface HeaderProps {
   onRefresh: () => void;
@@ -19,61 +21,6 @@ interface QuickStats {
   sp500: { price: number; change: number } | null;
   btc: { price: number; change: number } | null;
   gold: { price: number; change: number } | null;
-}
-
-// Market hours check functions
-function isUSMarketOpen(): boolean {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  const utcMinutes = now.getUTCMinutes();
-  const time = utcHour + utcMinutes / 60;
-  const dayOfWeek = now.getUTCDay();
-
-  // Weekend check
-  if (dayOfWeek === 0 || dayOfWeek === 6) return false;
-
-  // NYSE: 14:30 - 21:00 UTC
-  return time >= 14.5 && time < 21;
-}
-
-function isBISTOpen(): boolean {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  const utcMinutes = now.getUTCMinutes();
-  const time = utcHour + utcMinutes / 60;
-  const dayOfWeek = now.getUTCDay();
-
-  // Weekend check
-  if (dayOfWeek === 0 || dayOfWeek === 6) return false;
-
-  // BIST: 07:00 - 15:00 UTC (Turkey is UTC+3)
-  return time >= 7 && time < 15;
-}
-
-function isEuropeOpen(): boolean {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  const utcMinutes = now.getUTCMinutes();
-  const time = utcHour + utcMinutes / 60;
-  const dayOfWeek = now.getUTCDay();
-
-  if (dayOfWeek === 0 || dayOfWeek === 6) return false;
-  return time >= 8 && time < 16.5;
-}
-
-function isAsiaOpen(): boolean {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  const utcMinutes = now.getUTCMinutes();
-  const time = utcHour + utcMinutes / 60;
-  const dayOfWeek = now.getUTCDay();
-
-  // Check for Sunday night / Monday morning in Asia
-  if (dayOfWeek === 0) return false;
-  if (dayOfWeek === 6) return false;
-
-  // Tokyo/HK/Seoul approximate: 00:00 - 08:00 UTC
-  return time >= 0 && time < 8;
 }
 
 export function Header({
@@ -162,10 +109,11 @@ export function Header({
     });
   };
 
-  const usOpen = isUSMarketOpen();
-  const bistOpen = isBISTOpen();
-  const europeOpen = isEuropeOpen();
-  const asiaOpen = isAsiaOpen();
+  // Get market statuses using centralized utility
+  const usStatus = getMarketStatus('US');
+  const euStatus = getMarketStatus('EU');
+  const asiaStatus = getMarketStatus('ASIA');
+  const bistStatus = getMarketStatus('BIST');
 
   return (
     <header className="sticky top-0 z-50 bg-terminal-bg/95 backdrop-blur-sm border-b border-terminal-border">
@@ -177,33 +125,41 @@ export function Header({
             <span className="text-neon-green">{t('live')}</span>
           </span>
           <span>|</span>
-          <span>
-            {t('usMarkets')}: {' '}
-            <span className={usOpen ? 'text-neon-green' : 'text-neon-amber'}>
-              {usOpen ? t('open') : t('closed')}
+          <MarketStatusTooltip marketId="US">
+            <span>
+              {t('usMarkets')}: {' '}
+              <span className={usStatus.statusClass}>
+                {usStatus.statusText}
+              </span>
             </span>
-          </span>
+          </MarketStatusTooltip>
           <span>|</span>
-          <span>
-            EU: {' '}
-            <span className={europeOpen ? 'text-neon-green' : 'text-neon-amber'}>
-              {europeOpen ? t('open') : t('closed')}
+          <MarketStatusTooltip marketId="EU">
+            <span>
+              EU: {' '}
+              <span className={euStatus.statusClass}>
+                {euStatus.isOpen ? t('open') : t('closed')}
+              </span>
             </span>
-          </span>
+          </MarketStatusTooltip>
           <span>|</span>
-          <span>
-            Asia: {' '}
-            <span className={asiaOpen ? 'text-neon-green' : 'text-neon-amber'}>
-              {asiaOpen ? t('open') : t('closed')}
+          <MarketStatusTooltip marketId="ASIA">
+            <span>
+              Asia: {' '}
+              <span className={asiaStatus.statusClass}>
+                {asiaStatus.isOpen ? t('open') : t('closed')}
+              </span>
             </span>
-          </span>
+          </MarketStatusTooltip>
           <span>|</span>
-          <span>
-            BIST: {' '}
-            <span className={bistOpen ? 'text-neon-green' : 'text-neon-amber'}>
-              {bistOpen ? t('open') : t('closed')}
+          <MarketStatusTooltip marketId="BIST">
+            <span>
+              BIST: {' '}
+              <span className={bistStatus.statusClass}>
+                {bistStatus.isOpen ? t('open') : t('closed')}
+              </span>
             </span>
-          </span>
+          </MarketStatusTooltip>
         </div>
         <div className="flex items-center gap-4 text-gray-500">
           {/* Language Switcher */}

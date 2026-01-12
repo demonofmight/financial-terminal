@@ -3,6 +3,9 @@ import { Card } from '../ui/Card';
 import { IoTrendingUp, IoTrendingDown, IoWarning, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchTreasuryYields } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
+import { isMarketOpen } from '../../utils/marketHours';
+import { DataTimestamp } from '../ui/DataTimestamp';
 import type { QuoteData } from '../../services/api/yahoo';
 
 interface YieldData {
@@ -33,9 +36,11 @@ interface TreasuryYieldsProps {
 
 export function TreasuryYields({ onClick }: TreasuryYieldsProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [yields, setYields] = useState<YieldData[]>(mockYields);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastTradeTime, setLastTradeTime] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +62,11 @@ export function TreasuryYields({ onClick }: TreasuryYieldsProps) {
       );
 
       setYields(processedYields);
+
+      // Store last trade time
+      if (data.length > 0 && data[0].lastTradeTime) {
+        setLastTradeTime(data[0].lastTradeTime);
+      }
     } catch (err) {
       console.error('Failed to fetch treasury yields:', err);
       setError('Failed to load');
@@ -69,6 +79,13 @@ export function TreasuryYields({ onClick }: TreasuryYieldsProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate spread (10Y - 2Y equivalent, using 5Y as proxy)
   const yield5Y = yields.find(y => y.maturity === '5Y')?.rate || 0;
@@ -185,6 +202,13 @@ export function TreasuryYields({ onClick }: TreasuryYieldsProps) {
               </>
             )}
           </div>
+
+          {/* Show timestamp when market is closed */}
+          {!isMarketOpen('US') && lastTradeTime && (
+            <div className="text-center">
+              <DataTimestamp timestamp={lastTradeTime} />
+            </div>
+          )}
 
           {error && (
             <div className="text-center">

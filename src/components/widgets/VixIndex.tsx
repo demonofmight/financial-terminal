@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { IoWarning, IoCheckmarkCircle, IoAlertCircle, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchVIX } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
 
 interface VixIndexProps {
   onClick?: () => void;
@@ -10,6 +11,7 @@ interface VixIndexProps {
 
 export function VixIndex({ onClick }: VixIndexProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [vixValue, setVixValue] = useState(18.45);
   const [change, setChange] = useState(-1.23);
   const [changePercent, setChangePercent] = useState(-6.25);
@@ -37,6 +39,13 @@ export function VixIndex({ onClick }: VixIndexProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // VIX levels interpretation
   const getVixStatus = (value: number) => {

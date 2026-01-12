@@ -3,6 +3,9 @@ import { Card } from '../ui/Card';
 import { IoFlame, IoCube, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchCommodities } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
+import { isWeekend } from '../../utils/marketHours';
+import { DataTimestamp } from '../ui/DataTimestamp';
 import type { QuoteData } from '../../services/api/yahoo';
 
 interface Commodity {
@@ -52,9 +55,11 @@ interface CommoditiesProps {
 
 export function Commodities({ onCommodityClick }: CommoditiesProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [commodities, setCommodities] = useState<Commodity[]>(mockCommodities);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastTradeTime, setLastTradeTime] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -76,6 +81,11 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
       });
 
       setCommodities(processedCommodities.length > 0 ? processedCommodities : mockCommodities);
+
+      // Store last trade time
+      if (data.length > 0 && data[0].lastTradeTime) {
+        setLastTradeTime(data[0].lastTradeTime);
+      }
     } catch (err) {
       console.error('Failed to fetch commodities:', err);
       setError('Failed to load');
@@ -88,6 +98,13 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Economic signal based on copper (Dr. Copper)
   const copper = commodities.find(c => c.symbol === 'HG');
@@ -170,6 +187,13 @@ export function Commodities({ onCommodityClick }: CommoditiesProps) {
               </span>
             </div>
           </div>
+
+          {/* Show timestamp on weekends when futures are closed */}
+          {isWeekend() && lastTradeTime && (
+            <div className="text-center mt-2">
+              <DataTimestamp timestamp={lastTradeTime} />
+            </div>
+          )}
 
           {error && (
             <div className="text-center mt-2">

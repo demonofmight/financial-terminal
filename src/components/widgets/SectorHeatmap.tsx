@@ -3,6 +3,9 @@ import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchSectorPerformance } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
+import { isMarketOpen } from '../../utils/marketHours';
+import { DataTimestamp } from '../ui/DataTimestamp';
 
 interface Sector {
   symbol: string;
@@ -55,9 +58,11 @@ interface SectorHeatmapProps {
 
 export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [sectors, setSectors] = useState<Sector[]>(mockSectors);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastTradeTime, setLastTradeTime] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -75,6 +80,11 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
           change: safeNumber(s.changePercent, 0),
         }));
         setSectors(sectorData);
+
+        // Store the last trade time from first item (all should be similar)
+        if (data[0].lastTradeTime) {
+          setLastTradeTime(data[0].lastTradeTime);
+        }
       } else {
         console.warn('No sector data received, using mock data');
         setError('Using cached data');
@@ -91,6 +101,13 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card
@@ -170,6 +187,13 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
               <span>{t('strongBuy')}</span>
             </div>
           </div>
+
+          {/* Show timestamp when market is closed */}
+          {!isMarketOpen('US') && lastTradeTime && (
+            <div className="text-center mt-2">
+              <DataTimestamp timestamp={lastTradeTime} />
+            </div>
+          )}
 
           {error && (
             <div className="text-center mt-2">

@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchCurrencyRates } from '../../services/api/exchange';
+import { useRefresh } from '../../contexts/RefreshContext';
 
 interface CurrencyPair {
   pair: string;
@@ -37,6 +38,7 @@ interface CurrencyRatesProps {
 
 export function CurrencyRates({ onPairClick }: CurrencyRatesProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [currencies, setCurrencies] = useState<CurrencyPair[]>(mockCurrencies);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,13 @@ export function CurrencyRates({ onPairClick }: CurrencyRatesProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card

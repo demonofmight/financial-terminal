@@ -4,6 +4,7 @@ import { useLanguage } from './i18n';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { useMarketData } from './hooks/useMarketData';
 import { useStore } from './store/useStore';
+import { RefreshProvider, useRefresh } from './contexts/RefreshContext';
 import { SectorHeatmap } from './components/widgets/SectorHeatmap';
 import { SP500TopMovers } from './components/widgets/SP500TopMovers';
 import { PreciousMetals } from './components/widgets/PreciousMetals';
@@ -83,7 +84,7 @@ const symbolMappings: Record<string, string> = {
   TNX: 'TVC:TNX',
 };
 
-function App() {
+function AppContent() {
   const { t } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState('');
@@ -92,18 +93,23 @@ function App() {
   // Initialize market data and sync with IndexedDB
   const { isInitialized } = useMarketData();
   const { isLoading, lastUpdate, updateLastRefresh, setLoading } = useStore();
+  const { triggerRefresh, setIsRefreshing } = useRefresh();
 
-  // Handle refresh - currently simulated, will be replaced with real API calls
+  // Handle refresh - triggers all widgets to refresh their data
   const handleRefresh = useCallback(async () => {
     setLoading(true);
+    setIsRefreshing(true);
     try {
-      // TODO: Replace with actual refreshData() when APIs are connected
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Trigger all widgets to refresh
+      triggerRefresh();
+      // Small delay to allow widgets to start fetching
+      await new Promise((resolve) => setTimeout(resolve, 500));
       updateLastRefresh();
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [setLoading, updateLastRefresh]);
+  }, [setLoading, updateLastRefresh, triggerRefresh, setIsRefreshing]);
 
   // Auto-refresh every 5 minutes
   const {
@@ -232,6 +238,14 @@ function App() {
         title={selectedTitle}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <RefreshProvider>
+      <AppContent />
+    </RefreshProvider>
   );
 }
 

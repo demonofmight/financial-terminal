@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchPreciousMetals } from '../../services/api/yahoo';
+import { useRefresh } from '../../contexts/RefreshContext';
 
 interface Metal {
   symbol: string;
@@ -49,6 +50,7 @@ interface PreciousMetalsProps {
 
 export function PreciousMetals({ onMetalClick }: PreciousMetalsProps) {
   const { t } = useLanguage();
+  const { refreshKey } = useRefresh();
   const [metals, setMetals] = useState<Metal[]>(mockMetals);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +87,13 @@ export function PreciousMetals({ onMetalClick }: PreciousMetalsProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Listen for global refresh
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchData();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card

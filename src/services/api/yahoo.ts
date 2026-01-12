@@ -10,6 +10,11 @@ interface YahooQuoteResponse {
         symbol: string;
         regularMarketPrice?: number;
         previousClose?: number;
+        regularMarketChange?: number;
+        regularMarketChangePercent?: number;
+        chartPreviousClose?: number;
+        regularMarketPreviousClose?: number;
+        regularMarketTime?: number; // Unix timestamp of last trade
         currency?: string;
         exchangeName?: string;
       };
@@ -35,6 +40,7 @@ export interface QuoteData {
   changePercent: number;
   currency: string;
   exchange: string;
+  lastTradeTime?: number; // Unix timestamp of last trade
 }
 
 /**
@@ -76,14 +82,37 @@ export async function fetchQuote(symbol: string): Promise<QuoteData> {
     }
 
     const meta = result.meta;
+
+    // Debug: Log full meta object for futures
+    if (symbol.includes('=F') || symbol.startsWith('^')) {
+      console.log(`[DEBUG] Full meta for ${symbol}:`, JSON.stringify(meta, null, 2));
+    }
+
     const price = safeNumber(meta.regularMarketPrice, 0);
-    const previousClose = safeNumber(meta.previousClose, price);
 
-    // Calculate change - avoid division by zero
-    const change = price - previousClose;
-    const changePercent = previousClose !== 0 ? (change / previousClose) * 100 : 0;
+    // Get previousClose from multiple potential sources
+    const previousClose = safeNumber(
+      meta.chartPreviousClose ?? meta.regularMarketPreviousClose ?? meta.previousClose,
+      price
+    );
 
-    console.log(`Parsed data for ${symbol}: price=${price}, prevClose=${previousClose}, change=${changePercent}%`);
+    // Try to use direct change values from API if available (more reliable for futures)
+    let change: number;
+    let changePercent: number;
+
+    if (meta.regularMarketChange !== undefined && meta.regularMarketChangePercent !== undefined) {
+      // Use API-provided values (preferred for futures)
+      change = safeNumber(meta.regularMarketChange, 0);
+      changePercent = safeNumber(meta.regularMarketChangePercent, 0);
+      console.log(`[QUOTE] ${symbol}: Using API change values`);
+    } else {
+      // Fallback: Calculate manually
+      change = price - previousClose;
+      changePercent = previousClose !== 0 ? (change / previousClose) * 100 : 0;
+      console.log(`[QUOTE] ${symbol}: Calculated change from previousClose=${previousClose}`);
+    }
+
+    console.log(`[QUOTE] ${symbol}: price=${price}, change=${change.toFixed(4)}, changePercent=${changePercent.toFixed(4)}%`);
 
     return {
       symbol: meta.symbol || symbol,
@@ -93,6 +122,7 @@ export async function fetchQuote(symbol: string): Promise<QuoteData> {
       changePercent: safeNumber(changePercent),
       currency: meta.currency || 'USD',
       exchange: meta.exchangeName || 'Unknown',
+      lastTradeTime: meta.regularMarketTime,
     };
   } catch (error) {
     console.error(`Yahoo Finance error for ${symbol}:`, error);
