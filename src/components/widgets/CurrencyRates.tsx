@@ -149,23 +149,6 @@ export function CurrencyRates({ onPairClick }: CurrencyRatesProps) {
             ))}
           </div>
 
-          {/* Mini sparkline placeholder */}
-          <div className="mt-3 pt-3 border-t border-terminal-border">
-            <div className="text-[10px] text-gray-500 mb-2">USD/TRY 24h</div>
-            <div className="h-8 flex items-end gap-px">
-              {[32.1, 32.2, 32.15, 32.3, 32.25, 32.4, 32.35, 32.45, 32.4, 32.5, 32.45, 32.46].map((val, i) => (
-                <div
-                  key={i}
-                  className="flex-1 bg-neon-cyan/40 rounded-t-sm transition-all hover:bg-neon-cyan/60"
-                  style={{
-                    height: `${((val - 32) / 0.5) * 100}%`,
-                    minHeight: '4px',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
           {error && (
             <div className="text-center mt-2">
               <span className="text-[10px] text-neon-amber">Using cached data</span>

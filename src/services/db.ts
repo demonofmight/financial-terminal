@@ -51,8 +51,9 @@ export const PREF_KEYS = {
   THEME: 'theme',
 } as const;
 
-// Default crypto IDs
-const DEFAULT_CRYPTOS = ['bitcoin', 'ethereum', 'solana', 'ripple', 'binancecoin'];
+// Default crypto IDs (using CoinLore numeric IDs)
+// Bitcoin: 90, Ethereum: 80, XRP: 58, BNB: 2710, Solana: 48543
+const DEFAULT_CRYPTOS = ['90', '80', '58', '2710', '48543'];
 
 // Preference helpers
 export const preferences = {

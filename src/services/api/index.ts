@@ -39,7 +39,6 @@ export {
   fetchExchangeRates,
   fetchPairRate,
   fetchCurrencyRates,
-  fetchSupportedCurrencies,
 } from './exchange';
 
 // Yahoo Finance exports

@@ -16,8 +16,24 @@ export const ALL_WIDGET_IDS = [
   'commodities',
 ];
 
-// Default widget order
-export const DEFAULT_WIDGET_ORDER = [...ALL_WIDGET_IDS];
+// Default widget order (optimized for 4-column masonry layout)
+// Column 1: sector-heatmap, precious-metals, bist-overview
+// Column 2: sp500-movers, crypto-tracker, currency-rates
+// Column 3: global-markets, commodities
+// Column 4: market-sentiment, economic-calendar, treasury-yields
+export const DEFAULT_WIDGET_ORDER = [
+  'sector-heatmap',
+  'precious-metals',
+  'bist-overview',
+  'sp500-movers',
+  'crypto-tracker',
+  'currency-rates',
+  'global-markets',
+  'commodities',
+  'market-sentiment',
+  'economic-calendar',
+  'treasury-yields',
+];
 
 // Widget metadata for display
 export const WIDGET_INFO: Record<string, { title: string; titleTr: string }> = {

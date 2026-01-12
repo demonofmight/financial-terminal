@@ -6,7 +6,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // CoinGecko API
+      // CoinLore API (Free, no rate limit, 14000+ cryptos)
+      '/api/coinlore': {
+        target: 'https://api.coinlore.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/coinlore/, ''),
+      },
+      // CoinGecko API (backup)
       '/api/coingecko': {
         target: 'https://api.coingecko.com',
         changeOrigin: true,
@@ -47,6 +53,12 @@ export default defineConfig({
         target: 'https://nfs.faireconomy.media',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/forexfactory/, ''),
+      },
+      // Frankfurter API (Free forex rates with historical data)
+      '/api/frankfurter': {
+        target: 'https://api.frankfurter.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/frankfurter/, ''),
       },
     },
   },

@@ -1,119 +1,118 @@
 import axios from 'axios';
 import type { CurrencyRate } from '../../types';
+import { cache } from '../db';
 
-// Use Vite proxy to bypass CORS
-const BASE_URL = '/api/exchange/v6';
-const API_KEY = import.meta.env.VITE_EXCHANGE_API_KEY;
+// Frankfurter API - Free forex rates from ECB with historical data
+const FRANKFURTER_URL = '/api/frankfurter';
 
-interface ExchangeRateResponse {
-  result: string;
-  documentation: string;
-  terms_of_use: string;
-  time_last_update_unix: number;
-  time_last_update_utc: string;
-  time_next_update_unix: number;
-  time_next_update_utc: string;
-  base_code: string;
-  conversion_rates: Record<string, number>;
+// Cache duration
+const CACHE_DURATION = 5; // 5 minutes
+
+interface FrankfurterResponse {
+  amount: number;
+  base: string;
+  date: string;
+  rates: Record<string, number>;
 }
 
-interface PairConversionResponse {
-  result: string;
-  documentation: string;
-  terms_of_use: string;
-  time_last_update_unix: number;
-  time_last_update_utc: string;
-  time_next_update_unix: number;
-  time_next_update_utc: string;
-  base_code: string;
-  target_code: string;
-  conversion_rate: number;
-}
-
-// Store previous rates for calculating change
-let previousRates: Record<string, number> = {};
+// Currency pairs we want to track
+const CURRENCY_PAIRS = [
+  { pair: 'USD/TRY', base: 'USD', quote: 'TRY' },
+  { pair: 'EUR/USD', base: 'EUR', quote: 'USD' },
+  { pair: 'EUR/TRY', base: 'EUR', quote: 'TRY' },
+  { pair: 'GBP/USD', base: 'GBP', quote: 'USD' },
+  { pair: 'USD/JPY', base: 'USD', quote: 'JPY' },
+];
 
 /**
- * Fetch all exchange rates for a base currency
+ * Get yesterday's date in YYYY-MM-DD format
  */
-export async function fetchExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
-  try {
-    const response = await axios.get<ExchangeRateResponse>(
-      `${BASE_URL}/${API_KEY}/latest/${baseCurrency}`
-    );
-
-    if (response.data.result !== 'success') {
-      throw new Error('Failed to fetch exchange rates');
-    }
-
-    return response.data.conversion_rates;
-  } catch (error) {
-    console.error('Exchange Rate API error:', error);
-    throw new Error('Failed to fetch exchange rates');
-  }
+function getYesterdayDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  // Skip weekends (ECB doesn't publish rates on weekends)
+  const day = date.getDay();
+  if (day === 0) date.setDate(date.getDate() - 2); // Sunday -> Friday
+  if (day === 6) date.setDate(date.getDate() - 1); // Saturday -> Friday
+  return date.toISOString().split('T')[0];
 }
 
 /**
- * Fetch specific currency pair rate
+ * Fetch current and previous day rates to calculate change
  */
-export async function fetchPairRate(
-  baseCurrency: string,
-  targetCurrency: string
-): Promise<number> {
-  try {
-    const response = await axios.get<PairConversionResponse>(
-      `${BASE_URL}/${API_KEY}/pair/${baseCurrency}/${targetCurrency}`
-    );
+async function fetchRatesWithChange(base: string, quotes: string[]): Promise<{
+  current: Record<string, number>;
+  previous: Record<string, number>;
+}> {
+  const yesterday = getYesterdayDate();
 
-    if (response.data.result !== 'success') {
-      throw new Error('Failed to fetch pair rate');
-    }
+  const [currentRes, previousRes] = await Promise.all([
+    axios.get<FrankfurterResponse>(`${FRANKFURTER_URL}/latest`, {
+      params: { from: base, to: quotes.join(',') },
+    }),
+    axios.get<FrankfurterResponse>(`${FRANKFURTER_URL}/${yesterday}`, {
+      params: { from: base, to: quotes.join(',') },
+    }),
+  ]);
 
-    return response.data.conversion_rate;
-  } catch (error) {
-    console.error(`Exchange Rate API error for ${baseCurrency}/${targetCurrency}:`, error);
-    throw new Error('Failed to fetch pair rate');
-  }
+  return {
+    current: currentRes.data.rates,
+    previous: previousRes.data.rates,
+  };
 }
 
 /**
- * Fetch common currency pairs with change calculation
+ * Fetch common currency pairs with daily change
  */
 export async function fetchCurrencyRates(): Promise<CurrencyRate[]> {
+  const cacheKey = 'currency_rates_v2';
+
+  // Try cache first
+  const cached = await cache.get<CurrencyRate[]>(cacheKey);
+  if (cached) {
+    console.log('[Exchange] Using cached currency rates');
+    return cached;
+  }
+
   try {
-    // Fetch USD-based rates
-    const usdRates = await fetchExchangeRates('USD');
-    // Fetch EUR-based rates for EUR pairs
-    const eurRates = await fetchExchangeRates('EUR');
+    // Group pairs by base currency to minimize API calls
+    const usdPairs = CURRENCY_PAIRS.filter(p => p.base === 'USD');
+    const eurPairs = CURRENCY_PAIRS.filter(p => p.base === 'EUR');
+    const gbpPairs = CURRENCY_PAIRS.filter(p => p.base === 'GBP');
 
-    const pairs: Array<{ pair: string; rate: number }> = [
-      { pair: 'USD/TRY', rate: usdRates.TRY },
-      { pair: 'EUR/USD', rate: 1 / usdRates.EUR },
-      { pair: 'EUR/TRY', rate: eurRates.TRY },
-      { pair: 'GBP/USD', rate: 1 / usdRates.GBP },
-      { pair: 'USD/JPY', rate: usdRates.JPY },
-    ];
+    const [usdRates, eurRates, gbpRates] = await Promise.all([
+      usdPairs.length > 0 ? fetchRatesWithChange('USD', usdPairs.map(p => p.quote)) : { current: {}, previous: {} },
+      eurPairs.length > 0 ? fetchRatesWithChange('EUR', eurPairs.map(p => p.quote)) : { current: {}, previous: {} },
+      gbpPairs.length > 0 ? fetchRatesWithChange('GBP', gbpPairs.map(p => p.quote)) : { current: {}, previous: {} },
+    ]);
 
-    // Calculate changes based on previous rates
-    const result: CurrencyRate[] = pairs.map(({ pair, rate }) => {
-      const prevRate = previousRates[pair] || rate;
-      const change = rate - prevRate;
-      const changePercent = prevRate !== 0 ? (change / prevRate) * 100 : 0;
+    const results: CurrencyRate[] = CURRENCY_PAIRS.map(({ pair, base, quote }) => {
+      let rates: { current: Record<string, number>; previous: Record<string, number> };
+
+      if (base === 'USD') rates = usdRates;
+      else if (base === 'EUR') rates = eurRates;
+      else if (base === 'GBP') rates = gbpRates;
+      else rates = { current: {}, previous: {} };
+
+      const currentRate = rates.current[quote] || 0;
+      const previousRate = rates.previous[quote] || currentRate;
+
+      const change = currentRate - previousRate;
+      const changePercent = previousRate !== 0 ? (change / previousRate) * 100 : 0;
 
       return {
         pair,
-        rate,
+        rate: currentRate,
         change,
         changesPercentage: changePercent,
       };
     });
 
-    // Store current rates for next comparison
-    pairs.forEach(({ pair, rate }) => {
-      previousRates[pair] = rate;
-    });
+    // Cache the results
+    await cache.set(cacheKey, results, CACHE_DURATION);
+    console.log('[Exchange] Currency rates fetched and cached');
 
-    return result;
+    return results;
   } catch (error) {
     console.error('Failed to fetch currency rates:', error);
     throw new Error('Failed to fetch currency rates');
@@ -121,14 +120,34 @@ export async function fetchCurrencyRates(): Promise<CurrencyRate[]> {
 }
 
 /**
- * Get supported currencies
+ * Fetch all exchange rates for a base currency (legacy)
  */
-export async function fetchSupportedCurrencies(): Promise<string[]> {
+export async function fetchExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
   try {
-    const rates = await fetchExchangeRates('USD');
-    return Object.keys(rates);
+    const response = await axios.get<FrankfurterResponse>(`${FRANKFURTER_URL}/latest`, {
+      params: { from: baseCurrency },
+    });
+    return response.data.rates;
   } catch (error) {
-    console.error('Failed to fetch supported currencies:', error);
-    return [];
+    console.error('Frankfurter API error:', error);
+    throw new Error('Failed to fetch exchange rates');
+  }
+}
+
+/**
+ * Fetch specific currency pair rate (legacy)
+ */
+export async function fetchPairRate(
+  baseCurrency: string,
+  targetCurrency: string
+): Promise<number> {
+  try {
+    const response = await axios.get<FrankfurterResponse>(`${FRANKFURTER_URL}/latest`, {
+      params: { from: baseCurrency, to: targetCurrency },
+    });
+    return response.data.rates[targetCurrency] || 0;
+  } catch (error) {
+    console.error(`Frankfurter API error for ${baseCurrency}/${targetCurrency}:`, error);
+    throw new Error('Failed to fetch pair rate');
   }
 }

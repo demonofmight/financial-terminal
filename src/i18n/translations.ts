@@ -122,6 +122,11 @@ export const translations = {
     edit: 'Edit',
     done: 'Done',
     addCryptocurrency: 'Add Cryptocurrency',
+    searchCrypto: 'Search cryptocurrency...',
+    popularCryptos: 'Popular Cryptocurrencies',
+    searchResults: 'Search Results',
+    noResults: 'No results found',
+    noCryptos: 'No cryptocurrencies added',
 
     // Sector Legend
     strongSell: 'Strong Sell',
@@ -288,6 +293,11 @@ export const translations = {
     edit: 'Düzenle',
     done: 'Tamam',
     addCryptocurrency: 'Kripto Para Ekle',
+    searchCrypto: 'Kripto para ara...',
+    popularCryptos: 'Popüler Kripto Paralar',
+    searchResults: 'Arama Sonuçları',
+    noResults: 'Sonuç bulunamadı',
+    noCryptos: 'Kripto para eklenmedi',
 
     // Sector Legend
     strongSell: 'Güçlü Sat',
