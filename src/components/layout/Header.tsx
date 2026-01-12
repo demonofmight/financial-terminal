@@ -202,11 +202,11 @@ export function Header({
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           <motion.div
-            className="w-8 h-8 rounded-md bg-accent-green/10 flex items-center justify-center border border-accent-green/20"
+            className="w-8 h-8 rounded-md flex items-center justify-center overflow-hidden"
             whileHover={{ scale: 1.05 }}
             transition={{ type: 'spring', stiffness: 400 }}
           >
-            <span className="text-accent-green font-bold text-sm">F</span>
+            <img src="/src/assets/logo-nobg.png" alt="Finterm" className="w-8 h-8 object-contain" />
           </motion.div>
           <div>
             <h1 className="text-lg font-display tracking-wider text-white flex items-center gap-2">
