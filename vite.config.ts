@@ -42,6 +42,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/yahoo/, ''),
       },
+      // ForexFactory Calendar (Free, no API key)
+      '/api/forexfactory': {
+        target: 'https://nfs.faireconomy.media',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/forexfactory/, ''),
+      },
     },
   },
 })

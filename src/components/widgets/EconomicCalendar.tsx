@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Card } from '../ui/Card';
 import { IoCalendar, IoAlertCircle, IoTime, IoRefresh, IoInformationCircle } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
-import { fetchEconomicCalendar, type EconomicCalendarEvent } from '../../services/api/fmp';
+import { fetchForexFactoryCalendar, type ForexFactoryEvent } from '../../services/api/forexfactory';
 import { useRefresh } from '../../contexts/RefreshContext';
 
 interface ProcessedEvent {
@@ -20,6 +20,12 @@ interface ProcessedEvent {
   actual?: string;
   description: string;
   descriptionTr: string;
+  // New fields for local time display
+  fullDate: Date;
+  localDate: string;
+  localTime: string;
+  timeUntil: number; // milliseconds until event
+  isPast: boolean;
 }
 
 // Event descriptions for tooltips (English and Turkish)
@@ -223,77 +229,6 @@ const eventData: Record<string, { en: string; tr: string; nameTr: string }> = {
   },
 };
 
-// Fallback mock data
-const mockEvents: ProcessedEvent[] = [
-  {
-    id: '1',
-    date: 'Mon',
-    dayName: 'Monday',
-    time: '15:00',
-    event: 'ISM Manufacturing PMI',
-    eventTr: 'ISM İmalat PMI',
-    country: 'US',
-    impact: 'high',
-    forecast: '49.5',
-    previous: '49.2',
-    description: eventData['ISM Manufacturing PMI']?.en || 'Manufacturing sector health indicator.',
-    descriptionTr: eventData['ISM Manufacturing PMI']?.tr || 'İmalat sektörü sağlık göstergesi.',
-  },
-  {
-    id: '2',
-    date: 'Tue',
-    dayName: 'Tuesday',
-    time: '10:00',
-    event: 'JOLTS Job Openings',
-    eventTr: 'JOLTS İş Açıkları',
-    country: 'US',
-    impact: 'medium',
-    forecast: '8.75M',
-    previous: '8.76M',
-    description: eventData['JOLTS Job Openings']?.en || 'Job openings data.',
-    descriptionTr: eventData['JOLTS Job Openings']?.tr || 'İş açıkları verisi.',
-  },
-  {
-    id: '3',
-    date: 'Wed',
-    dayName: 'Wednesday',
-    time: '19:00',
-    event: 'FOMC Meeting Minutes',
-    eventTr: 'FOMC Toplantı Tutanakları',
-    country: 'US',
-    impact: 'high',
-    description: eventData['FOMC Meeting Minutes']?.en || 'Federal Reserve meeting minutes.',
-    descriptionTr: eventData['FOMC Meeting Minutes']?.tr || 'Federal Rezerv toplantı tutanakları.',
-  },
-  {
-    id: '4',
-    date: 'Thu',
-    dayName: 'Thursday',
-    time: '13:30',
-    event: 'Initial Jobless Claims',
-    eventTr: 'Haftalık İşsizlik Başvuruları',
-    country: 'US',
-    impact: 'medium',
-    forecast: '215K',
-    previous: '211K',
-    description: eventData['Initial Jobless Claims']?.en || 'Weekly unemployment claims.',
-    descriptionTr: eventData['Initial Jobless Claims']?.tr || 'Haftalık işsizlik başvuruları.',
-  },
-  {
-    id: '5',
-    date: 'Fri',
-    dayName: 'Friday',
-    time: '13:30',
-    event: 'Non-Farm Payrolls',
-    eventTr: 'Tarım Dışı İstihdam',
-    country: 'US',
-    impact: 'high',
-    forecast: '180K',
-    previous: '199K',
-    description: eventData['Non-Farm Payrolls']?.en || 'Monthly employment report.',
-    descriptionTr: eventData['Non-Farm Payrolls']?.tr || 'Aylık istihdam raporu.',
-  },
-];
 
 const impactColors = {
   high: 'bg-neon-red/20 text-neon-red border-neon-red/30',
@@ -322,6 +257,31 @@ const countryFlags: Record<string, string> = {
 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const fullDayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+/**
+ * Format time until event in human-readable format
+ */
+function formatTimeUntil(diffMs: number, language: string): string {
+  if (diffMs < 0) return language === 'tr' ? 'Geçti' : 'Passed';
+
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    if (remainingHours > 0) {
+      return language === 'tr' ? `${days}g ${remainingHours}s` : `${days}d ${remainingHours}h`;
+    }
+    return language === 'tr' ? `${days}g` : `${days}d`;
+  }
+
+  if (hours > 0) {
+    return language === 'tr' ? `${hours}s ${minutes}dk` : `${hours}h ${minutes}m`;
+  }
+
+  return language === 'tr' ? `${minutes}dk` : `${minutes}m`;
+}
+
 function getEventInfo(eventName: string): { en: string; tr: string; nameTr: string } {
   // Check for exact match
   if (eventData[eventName]) {
@@ -343,25 +303,50 @@ function getEventInfo(eventName: string): { en: string; tr: string; nameTr: stri
   };
 }
 
-function processEvent(event: EconomicCalendarEvent, index: number): ProcessedEvent {
+function processEvent(event: ForexFactoryEvent, index: number, language: string): ProcessedEvent {
+  // ForexFactory uses 'date' field (ISO 8601 with timezone)
   const eventDate = new Date(event.date);
+  const now = new Date();
   const dayIndex = eventDate.getDay();
-  const info = getEventInfo(event.event);
+  const info = getEventInfo(event.title);
+
+  // Calculate time difference
+  const diffMs = eventDate.getTime() - now.getTime();
+
+  // Format local date based on language
+  const localDate = eventDate.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    weekday: 'short',
+  });
+
+  // Format local time (24h format)
+  const localTime = eventDate.toLocaleTimeString(language === 'tr' ? 'tr-TR' : 'en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 
   return {
-    id: `${index}-${event.date}-${event.event}`,
+    id: `${index}-${event.date}-${event.title}`,
     date: dayNames[dayIndex],
     dayName: fullDayNames[dayIndex],
     time: eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-    event: event.event,
+    event: event.title,
     eventTr: info.nameTr,
-    country: event.country,
+    country: 'US', // ForexFactory uses "USD" for country, we map to "US"
     impact: (event.impact?.toLowerCase() || 'medium') as 'high' | 'medium' | 'low',
-    forecast: event.estimate || undefined,
+    forecast: event.forecast || undefined,
     previous: event.previous || undefined,
-    actual: event.actual || undefined,
+    actual: undefined, // ForexFactory doesn't include actual in advance
     description: info.en,
     descriptionTr: info.tr,
+    // New fields
+    fullDate: eventDate,
+    localDate,
+    localTime,
+    timeUntil: diffMs,
+    isPast: diffMs < 0,
   };
 }
 
@@ -424,82 +409,59 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
   );
 }
 
-const CALENDAR_STORAGE_KEY = 'economic_calendar_last_fetch';
-
-// Check if we need to refresh (new week started)
-function shouldRefreshCalendar(): boolean {
-  const lastFetch = localStorage.getItem(CALENDAR_STORAGE_KEY);
-  if (!lastFetch) return true;
-
-  const lastFetchDate = new Date(parseInt(lastFetch, 10));
-  const now = new Date();
-
-  // Get the Monday of the current week
-  const currentMonday = new Date(now);
-  currentMonday.setDate(now.getDate() - now.getDay() + 1);
-  currentMonday.setHours(0, 0, 0, 0);
-
-  // Get the Monday of the last fetch week
-  const lastFetchMonday = new Date(lastFetchDate);
-  lastFetchMonday.setDate(lastFetchDate.getDate() - lastFetchDate.getDay() + 1);
-  lastFetchMonday.setHours(0, 0, 0, 0);
-
-  // Refresh if it's a new week
-  return currentMonday.getTime() > lastFetchMonday.getTime();
-}
-
 export function EconomicCalendar() {
   const { t, language } = useLanguage();
-  const { refreshKey } = useRefresh();
-  const [events, setEvents] = useState<ProcessedEvent[]>(mockEvents);
+  useRefresh(); // Keep hook for consistency but don't use refreshKey
+  const [events, setEvents] = useState<ProcessedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const lastRefreshKeyRef = useRef(0);
+  const [showOnlyHighImpact, setShowOnlyHighImpact] = useState(true);
 
-  const fetchData = useCallback(async (force = false) => {
-    // Skip refresh if not forced and data is fresh (same week)
-    if (!force && !shouldRefreshCalendar()) {
-      console.log('[EconomicCalendar] Skipping refresh - data is from this week');
-      return;
-    }
-
+  // Fetch data - uses IndexedDB cache (only fetches from API once per week)
+  const fetchData = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await fetchEconomicCalendar();
-      console.log('Economic calendar data:', data);
+      // forceRefresh bypasses cache and fetches from API
+      const data = await fetchForexFactoryCalendar(forceRefresh);
+      console.log('[EconomicCalendar] Data received:', data?.length, 'events');
 
       if (data && data.length > 0) {
-        const processed = data.map((event, index) => processEvent(event, index));
+        const processed = data
+          .map((event, index) => processEvent(event, index, language))
+          .filter(e => !e.isPast) // Filter out past events
+          .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime()); // Sort by date
         setEvents(processed);
-        localStorage.setItem(CALENDAR_STORAGE_KEY, Date.now().toString());
+        setError(null);
       } else {
-        console.warn('No economic calendar data, using mock');
-        setError('Using cached data');
+        console.warn('[EconomicCalendar] No data received');
+        setError(language === 'tr' ? 'Veri alınamadı' : 'No data available');
       }
     } catch (err) {
-      console.error('Failed to fetch economic calendar:', err);
-      setError('Using cached data');
+      console.error('[EconomicCalendar] Fetch error:', err);
+      setError(language === 'tr' ? 'Veri alınamadı' : 'Failed to fetch data');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [language]);
 
+  // Fetch on mount (will use cache if available)
   useEffect(() => {
-    fetchData(true); // Force fetch on mount
+    fetchData(false);
   }, [fetchData]);
 
-  // Listen for global refresh - but only refresh if it's a new week
-  useEffect(() => {
-    if (refreshKey > 0 && refreshKey !== lastRefreshKeyRef.current) {
-      lastRefreshKeyRef.current = refreshKey;
-      fetchData(false); // Don't force - let it check if new week
-    }
-  }, [refreshKey, fetchData]);
+  // NOTE: Economic Calendar does NOT auto-refresh with other widgets
+  // ForexFactory API only updates once per hour and has strict rate limits
+  // Data is cached in IndexedDB and only refreshed when week changes
+
+  // Filter events based on high impact toggle
+  const filteredEvents = showOnlyHighImpact
+    ? events.filter(e => e.impact === 'high')
+    : events;
 
   const highImpactCount = events.filter(e => e.impact === 'high').length;
-  const nextHighImpact = events.find(e => e.impact === 'high');
+  const nextHighImpact = filteredEvents.find(e => e.impact === 'high' && !e.isPast);
 
   return (
     <Card
@@ -514,14 +476,25 @@ export function EconomicCalendar() {
           >
             <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
           </button>
+          <button
+            onClick={() => setShowOnlyHighImpact(!showOnlyHighImpact)}
+            className={`text-[10px] px-1.5 py-0.5 rounded transition-all ${
+              showOnlyHighImpact
+                ? 'bg-neon-red/20 text-neon-red border border-neon-red/30'
+                : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+            }`}
+            title={showOnlyHighImpact ? 'Show all events' : 'Show high impact only'}
+          >
+            {showOnlyHighImpact ? '🔴 HIGH' : 'ALL'}
+          </button>
           <div className="flex items-center gap-1 text-xs text-neon-red">
             <IoAlertCircle />
-            <span>{highImpactCount} {t('highImpact')}</span>
+            <span>{highImpactCount}</span>
           </div>
         </div>
       }
     >
-      {isLoading && events === mockEvents ? (
+      {isLoading && events.length === 0 ? (
         <div className="flex items-center justify-center py-8">
           <div className="w-6 h-6 border-2 border-neon-cyan/30 border-t-neon-cyan rounded-full animate-spin"></div>
         </div>
@@ -535,59 +508,85 @@ export function EconomicCalendar() {
 
           {/* Events List */}
           <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin pr-1">
-            {events.map((event) => (
-              <Tooltip
-                key={event.id}
-                content={language === 'tr' ? event.descriptionTr : event.description}
-              >
-                <div
-                  className={`w-full p-3 rounded border cursor-help transition-all hover:scale-[1.01] ${
-                    event.impact === 'high'
-                      ? 'bg-terminal-border/30 border-neon-red/20 hover:border-neon-red/40'
-                      : 'bg-terminal-border/20 border-terminal-border/50 hover:border-terminal-border'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-xs font-mono text-neon-cyan font-semibold">{event.date}</span>
-                        <span className="text-xs font-mono text-gray-500">{event.time}</span>
-                        <span className="text-base">{countryFlags[event.country] || '🌍'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-white font-medium">
-                          {language === 'tr' ? event.eventTr : event.event}
-                        </span>
-                        <IoInformationCircle className="text-gray-500 text-sm flex-shrink-0" />
-                      </div>
-                    </div>
-                    <div className={`px-2 py-1 rounded text-xs border flex-shrink-0 ${impactColors[event.impact]}`}>
-                      {impactLabels[event.impact]}
-                    </div>
-                  </div>
-
-                  {(event.forecast || event.previous || event.actual) && (
-                    <div className="flex flex-wrap items-center gap-4 mt-2.5 text-xs">
-                      {event.forecast && (
-                        <span className="text-gray-400">
-                          {t('forecast')}: <span className="text-white font-mono font-medium">{event.forecast}</span>
-                        </span>
-                      )}
-                      {event.previous && (
-                        <span className="text-gray-400">
-                          {t('previous')}: <span className="text-gray-300 font-mono">{event.previous}</span>
-                        </span>
-                      )}
-                      {event.actual && (
-                        <span className="text-neon-green">
-                          {t('actual')}: <span className="font-mono font-medium">{event.actual}</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
+            {error && events.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-neon-red text-sm mb-2">
+                  {error}
                 </div>
-              </Tooltip>
-            ))}
+                <button
+                  onClick={() => fetchData(true)}
+                  className="text-xs text-neon-cyan hover:underline"
+                >
+                  {language === 'tr' ? 'Tekrar dene' : 'Try again'}
+                </button>
+              </div>
+            ) : filteredEvents.length === 0 ? (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                {language === 'tr' ? 'Bu hafta önemli etkinlik yok' : 'No high impact events this week'}
+              </div>
+            ) : (
+              filteredEvents.map((event) => (
+                <Tooltip
+                  key={event.id}
+                  content={language === 'tr' ? event.descriptionTr : event.description}
+                >
+                  <div
+                    className={`w-full p-3 rounded border cursor-help transition-all hover:scale-[1.01] ${
+                      event.impact === 'high'
+                        ? 'bg-terminal-border/30 border-neon-red/20 hover:border-neon-red/40'
+                        : 'bg-terminal-border/20 border-terminal-border/50 hover:border-terminal-border'
+                    } ${event.isPast ? 'opacity-50' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        {/* Event Name Row */}
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-base">{countryFlags[event.country] || '🌍'}</span>
+                          <span className="text-sm text-white font-medium truncate">
+                            {language === 'tr' ? event.eventTr : event.event}
+                          </span>
+                          <IoInformationCircle className="text-gray-500 text-sm flex-shrink-0" />
+                        </div>
+                        {/* Date/Time Row */}
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-mono text-neon-cyan">{event.localDate}</span>
+                          <span className="font-mono text-gray-400">{event.localTime}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <div className={`px-2 py-0.5 rounded text-xs border ${impactColors[event.impact]}`}>
+                          {impactLabels[event.impact]}
+                        </div>
+                        {/* Countdown */}
+                        <span className={`text-[10px] font-mono ${event.isPast ? 'text-gray-500' : 'text-neon-amber'}`}>
+                          {formatTimeUntil(event.timeUntil, language)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {(event.forecast || event.previous || event.actual) && (
+                      <div className="flex flex-wrap items-center gap-3 mt-2 pt-2 border-t border-terminal-border/50 text-xs">
+                        {event.forecast && (
+                          <span className="text-gray-400">
+                            {t('forecast')}: <span className="text-white font-mono font-medium">{event.forecast}</span>
+                          </span>
+                        )}
+                        {event.previous && (
+                          <span className="text-gray-400">
+                            {t('previous')}: <span className="text-gray-300 font-mono">{event.previous}</span>
+                          </span>
+                        )}
+                        {event.actual && (
+                          <span className="text-neon-green">
+                            {t('actual')}: <span className="font-mono font-medium">{event.actual}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Tooltip>
+              ))
+            )}
           </div>
 
           {/* Next Major Event */}
@@ -595,22 +594,22 @@ export function EconomicCalendar() {
             <div className="pt-2 border-t border-terminal-border">
               <div className="flex items-center gap-2 p-2.5 rounded bg-neon-amber/10 border border-neon-amber/30">
                 <IoTime className="text-neon-amber text-lg flex-shrink-0" />
-                <div className="text-sm">
+                <div className="flex-1 text-sm">
                   <span className="text-gray-400">{t('nextHighImpact')}: </span>
                   <span className="text-white font-medium">
                     {language === 'tr' ? nextHighImpact.eventTr : nextHighImpact.event}
                   </span>
-                  <span className="text-neon-amber ml-2">{nextHighImpact.date} {nextHighImpact.time}</span>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-xs text-neon-amber font-mono">{nextHighImpact.localDate}</div>
+                  <div className="text-[10px] text-neon-amber/70 font-mono">
+                    {formatTimeUntil(nextHighImpact.timeUntil, language)}
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {error && (
-            <div className="text-center mt-2">
-              <span className="text-xs text-neon-amber">{error}</span>
-            </div>
-          )}
         </div>
       )}
     </Card>
