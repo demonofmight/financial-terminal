@@ -169,18 +169,6 @@ export const YAHOO_SYMBOLS = {
   // BIST (Turkish Market)
   BIST100: 'XU100.IS',
 
-  // Turkish Stocks (add .IS suffix)
-  THYAO: 'THYAO.IS',
-  SISE: 'SISE.IS',
-  EREGL: 'EREGL.IS',
-  GARAN: 'GARAN.IS',
-  AKBNK: 'AKBNK.IS',
-  YKBNK: 'YKBNK.IS',
-  ASELS: 'ASELS.IS',
-  KCHOL: 'KCHOL.IS',
-  SAHOL: 'SAHOL.IS',
-  TUPRS: 'TUPRS.IS',
-
   // Precious Metals (Futures)
   GOLD: 'GC=F',
   SILVER: 'SI=F',
@@ -207,37 +195,70 @@ export async function fetchVIX(): Promise<QuoteData> {
   return fetchQuote(YAHOO_SYMBOLS.VIX);
 }
 
+// BIST100 constituent stocks (all 100 companies)
+// Updated list - Yahoo Finance uses .IS suffix for Istanbul Stock Exchange
+export const BIST100_STOCKS = [
+  // Banking & Finance
+  'AKBNK.IS', 'GARAN.IS', 'ISCTR.IS', 'YKBNK.IS', 'VAKBN.IS', 'HALKB.IS', 'QNBFB.IS', 'SKBNK.IS', 'TSKB.IS', 'ALBRK.IS',
+  // Holdings
+  'KCHOL.IS', 'SAHOL.IS', 'DOHOL.IS', 'TAVHL.IS', 'AGHOL.IS', 'ECZYT.IS', 'TKFEN.IS', 'GLYHO.IS', 'NTHOL.IS', 'KOZAL.IS',
+  // Industry & Manufacturing
+  'EREGL.IS', 'KRDMD.IS', 'TOASO.IS', 'FROTO.IS', 'OTKAR.IS', 'TTRAK.IS', 'ARCLK.IS', 'VESTL.IS', 'KLMSN.IS', 'BRSAN.IS',
+  // Energy & Utilities
+  'TUPRS.IS', 'PETKM.IS', 'AYGAZ.IS', 'AKSEN.IS', 'ENKAI.IS', 'ODAS.IS', 'AKSA.IS', 'ZOREN.IS', 'GUBRF.IS', 'KONTR.IS',
+  // Telecom & Tech
+  'TCELL.IS', 'TTKOM.IS', 'ASELS.IS', 'LOGO.IS', 'INDES.IS', 'ARENA.IS', 'NETAS.IS', 'KAREL.IS', 'PAPIL.IS', 'ARDYZ.IS',
+  // Aviation & Transport
+  'THYAO.IS', 'PGSUS.IS', 'CLEBI.IS', 'RYSAS.IS', 'BEYAZ.IS',
+  // Retail & Consumer
+  'BIMAS.IS', 'MGROS.IS', 'SOKM.IS', 'BIZIM.IS', 'MAVI.IS', 'VAKKO.IS', 'ADEL.IS', 'CCOLA.IS', 'ULKER.IS', 'BANVT.IS',
+  // Construction & Real Estate
+  'EKGYO.IS', 'ISGYO.IS', 'EMLAK.IS', 'KLGYO.IS', 'SNGYO.IS', 'OYAKC.IS', 'BUCIM.IS', 'GOLTS.IS', 'CIMSA.IS', 'ADANA.IS',
+  // Healthcare & Pharma
+  'SELEC.IS', 'DEVA.IS', 'ECILC.IS', 'LKMNH.IS', 'MPARK.IS',
+  // Glass & Chemicals
+  'SISE.IS', 'TRKCM.IS', 'SODA.IS', 'BAGFS.IS', 'EGEEN.IS', 'AKFYE.IS', 'HEKTS.IS', 'ALKIM.IS', 'BRYAT.IS', 'GEDZA.IS',
+  // Mining & Metals
+  'KOZAA.IS', 'IPEKE.IS', 'KRVGD.IS',
+  // Textiles & Apparel
+  'KORDS.IS', 'YATAS.IS', 'DESA.IS', 'BLCYT.IS', 'BRKO.IS',
+  // Other Industrials
+  'AEFES.IS', 'PRKME.IS', 'ISMEN.IS', 'GWIND.IS', 'EUPWR.IS', 'GESAN.IS', 'VESBE.IS', 'CANTE.IS', 'MIATK.IS', 'KZBGY.IS',
+] as const;
+
 /**
- * Fetch BIST 100 index and top stocks
+ * Fetch BIST 100 index and all constituent stocks
+ * Fetches in batches to avoid overwhelming the API
  */
 export async function fetchBISTData(): Promise<{
   index: QuoteData;
   stocks: QuoteData[];
 }> {
-  const symbols = [
-    YAHOO_SYMBOLS.BIST100,
-    YAHOO_SYMBOLS.THYAO,
-    YAHOO_SYMBOLS.GARAN,
-    YAHOO_SYMBOLS.AKBNK,
-    YAHOO_SYMBOLS.EREGL,
-    YAHOO_SYMBOLS.SISE,
-    YAHOO_SYMBOLS.ASELS,
-    YAHOO_SYMBOLS.KCHOL,
-    YAHOO_SYMBOLS.SAHOL,
-    YAHOO_SYMBOLS.TUPRS,
-    YAHOO_SYMBOLS.YKBNK,
-  ];
+  console.log('[BIST] Fetching BIST100 index and all constituent stocks...');
 
-  const quotes = await fetchMultipleQuotes(symbols);
+  // First fetch the index
+  const indexQuote = await fetchQuote(YAHOO_SYMBOLS.BIST100);
 
-  const index = quotes.find(q => q.symbol === 'XU100.IS');
-  const stocks = quotes.filter(q => q.symbol !== 'XU100.IS');
+  // Fetch all stocks in batches of 20 to avoid rate limiting
+  const batchSize = 20;
+  const allStocks: QuoteData[] = [];
 
-  if (!index) {
-    throw new Error('Failed to fetch BIST 100 index');
+  for (let i = 0; i < BIST100_STOCKS.length; i += batchSize) {
+    const batch = BIST100_STOCKS.slice(i, i + batchSize) as string[];
+    console.log(`[BIST] Fetching batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(BIST100_STOCKS.length / batchSize)}`);
+
+    const batchResults = await fetchMultipleQuotes(batch);
+    allStocks.push(...batchResults);
+
+    // Small delay between batches to be nice to the API
+    if (i + batchSize < BIST100_STOCKS.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
 
-  return { index, stocks };
+  console.log(`[BIST] Successfully fetched ${allStocks.length} stocks`);
+
+  return { index: indexQuote, stocks: allStocks };
 }
 
 /**

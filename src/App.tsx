@@ -157,7 +157,17 @@ function AppContent() {
   }, [isInitialized, lastUpdate, updateLastRefresh]);
 
   const openChart = useCallback((symbol: string, title?: string) => {
-    const tvSymbol = symbolMappings[symbol] || symbol;
+    let tvSymbol = symbolMappings[symbol] || symbol;
+
+    // Check if this is a BIST stock (Turkish stocks from BISTOverview)
+    // BIST symbols are typically 4-5 uppercase letters
+    const isBISTStock = /^[A-Z]{4,5}$/.test(symbol) &&
+                        !['XLK', 'XLV', 'XLF', 'XLE', 'XLY', 'XLI', 'XLB', 'XLRE', 'XLC', 'XLP'].includes(symbol) &&
+                        (title?.includes('BIST') || !symbolMappings[symbol]);
+
+    if (isBISTStock && !tvSymbol.startsWith('BIST:')) {
+      tvSymbol = `BIST:${symbol}`;
+    }
 
     // Check if symbol should open in new tab (embedded widget doesn't work well for these)
     if (openInNewTabSymbols.includes(symbol) || tvSymbol.startsWith('BIST:')) {

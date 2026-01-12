@@ -79,6 +79,8 @@ export function SectorHeatmap({ onSectorClick }: SectorHeatmapProps) {
           name: s.symbol, // Name will come from translations
           change: safeNumber(s.changePercent, 0),
         }));
+        // Sort by change percentage (highest to lowest)
+        sectorData.sort((a, b) => b.change - a.change);
         setSectors(sectorData);
 
         // Store the last trade time from first item (all should be similar)

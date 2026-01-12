@@ -13,21 +13,65 @@ interface BISTStock {
   change: number;
 }
 
-// Stock name mappings
+// Stock name mappings - comprehensive BIST100 list
 const stockNames: Record<string, string> = {
-  'THYAO.IS': 'Türk Hava Yolları',
-  'SISE.IS': 'Şişecam',
-  'EREGL.IS': 'Ereğli Demir Çelik',
-  'GARAN.IS': 'Garanti BBVA',
-  'AKBNK.IS': 'Akbank',
-  'YKBNK.IS': 'Yapı Kredi',
-  'ASELS.IS': 'Aselsan',
-  'KCHOL.IS': 'Koç Holding',
-  'SAHOL.IS': 'Sabancı Holding',
-  'TUPRS.IS': 'Tüpraş',
+  // Banking & Finance
+  'AKBNK.IS': 'Akbank', 'GARAN.IS': 'Garanti BBVA', 'ISCTR.IS': 'İş Bankası',
+  'YKBNK.IS': 'Yapı Kredi', 'VAKBN.IS': 'Vakıfbank', 'HALKB.IS': 'Halkbank',
+  'QNBFB.IS': 'QNB Finansbank', 'SKBNK.IS': 'Şekerbank', 'TSKB.IS': 'TSKB',
+  'ALBRK.IS': 'Albaraka Türk',
+  // Holdings
+  'KCHOL.IS': 'Koç Holding', 'SAHOL.IS': 'Sabancı Holding', 'DOHOL.IS': 'Doğan Holding',
+  'TAVHL.IS': 'TAV Havalimanları', 'AGHOL.IS': 'Anadolu Grubu', 'ECZYT.IS': 'Eczacıbaşı Yatırım',
+  'TKFEN.IS': 'Tekfen Holding', 'GLYHO.IS': 'Global Yatırım', 'NTHOL.IS': 'Net Holding',
+  'KOZAL.IS': 'Koza Altın',
+  // Industry & Manufacturing
+  'EREGL.IS': 'Ereğli Demir Çelik', 'KRDMD.IS': 'Kardemir', 'TOASO.IS': 'Tofaş',
+  'FROTO.IS': 'Ford Otosan', 'OTKAR.IS': 'Otokar', 'TTRAK.IS': 'Türk Traktör',
+  'ARCLK.IS': 'Arçelik', 'VESTL.IS': 'Vestel', 'KLMSN.IS': 'Klimasan', 'BRSAN.IS': 'Borusan',
+  // Energy & Utilities
+  'TUPRS.IS': 'Tüpraş', 'PETKM.IS': 'Petkim', 'AYGAZ.IS': 'Aygaz',
+  'AKSEN.IS': 'Aksa Enerji', 'ENKAI.IS': 'Enka İnşaat', 'ODAS.IS': 'Odaş Elektrik',
+  'AKSA.IS': 'Aksa Akrilik', 'ZOREN.IS': 'Zorlu Enerji', 'GUBRF.IS': 'Gübre Fabrikaları',
+  'KONTR.IS': 'Kontrolmatik',
+  // Telecom & Tech
+  'TCELL.IS': 'Turkcell', 'TTKOM.IS': 'Türk Telekom', 'ASELS.IS': 'Aselsan',
+  'LOGO.IS': 'Logo Yazılım', 'INDES.IS': 'İndeks Bilgisayar', 'ARENA.IS': 'Arena Bilgisayar',
+  'NETAS.IS': 'Netaş', 'KAREL.IS': 'Karel Elektronik', 'PAPIL.IS': 'Papilon',
+  'ARDYZ.IS': 'Ard Yazılım',
+  // Aviation & Transport
+  'THYAO.IS': 'Türk Hava Yolları', 'PGSUS.IS': 'Pegasus', 'CLEBI.IS': 'Çelebi',
+  'RYSAS.IS': 'Reysaş', 'BEYAZ.IS': 'Beyaz Filo',
+  // Retail & Consumer
+  'BIMAS.IS': 'BİM', 'MGROS.IS': 'Migros', 'SOKM.IS': 'Şok Marketler',
+  'BIZIM.IS': 'Bizim Toptan', 'MAVI.IS': 'Mavi Giyim', 'VAKKO.IS': 'Vakko',
+  'ADEL.IS': 'Adel Kalemcilik', 'CCOLA.IS': 'Coca-Cola İçecek', 'ULKER.IS': 'Ülker',
+  'BANVT.IS': 'Banvit',
+  // Construction & Real Estate
+  'EKGYO.IS': 'Emlak Konut GYO', 'ISGYO.IS': 'İş GYO', 'EMLAK.IS': 'Emlak Katılım',
+  'KLGYO.IS': 'Kiler GYO', 'SNGYO.IS': 'Sinpaş GYO', 'OYAKC.IS': 'Oyak Çimento',
+  'BUCIM.IS': 'Bursa Çimento', 'GOLTS.IS': 'Göltaş', 'CIMSA.IS': 'Çimsa', 'ADANA.IS': 'Adana Çimento',
+  // Healthcare & Pharma
+  'SELEC.IS': 'Selçuk Ecza', 'DEVA.IS': 'Deva Holding', 'ECILC.IS': 'Eczacıbaşı İlaç',
+  'LKMNH.IS': 'Lokman Hekim', 'MPARK.IS': 'MLP Sağlık',
+  // Glass & Chemicals
+  'SISE.IS': 'Şişecam', 'TRKCM.IS': 'Trakya Cam', 'SODA.IS': 'Soda Sanayii',
+  'BAGFS.IS': 'Bagfaş', 'EGEEN.IS': 'Ege Endüstri', 'AKFYE.IS': 'Akfen Yenilenebilir',
+  'HEKTS.IS': 'Hektaş', 'ALKIM.IS': 'Alkim Kimya', 'BRYAT.IS': 'Borusan Yatırım',
+  'GEDZA.IS': 'Gediz Ambalaj',
+  // Mining & Metals
+  'KOZAA.IS': 'Koza Anadolu', 'IPEKE.IS': 'İpek Enerji', 'KRVGD.IS': 'Kervan Gıda',
+  // Textiles & Apparel
+  'KORDS.IS': 'Kordsa', 'YATAS.IS': 'Yataş', 'DESA.IS': 'Desa Deri',
+  'BLCYT.IS': 'Bilici Yatırım', 'BRKO.IS': 'Birko Mensucat',
+  // Other Industrials
+  'AEFES.IS': 'Anadolu Efes', 'PRKME.IS': 'Park Elektrik', 'ISMEN.IS': 'İş Yatırım Menkul',
+  'GWIND.IS': 'Galata Wind', 'EUPWR.IS': 'Europower', 'GESAN.IS': 'Giresun Enerji',
+  'VESBE.IS': 'Vestel Beyaz Eşya', 'CANTE.IS': 'Can Teknoloji', 'MIATK.IS': 'Mia Teknoloji',
+  'KZBGY.IS': 'Kızılbük Enerji',
 };
 
-// Fallback mock data
+// Fallback mock data (5 stocks each)
 const mockBistData = {
   indexValue: 9876.54,
   indexChange: 1.23,
@@ -35,11 +79,15 @@ const mockBistData = {
     { symbol: 'THYAO', name: 'Türk Hava Yolları', price: 289.50, change: 5.67 },
     { symbol: 'SISE', name: 'Şişecam', price: 45.78, change: 4.32 },
     { symbol: 'EREGL', name: 'Ereğli Demir Çelik', price: 52.30, change: 3.89 },
+    { symbol: 'ASELS', name: 'Aselsan', price: 85.20, change: 3.45 },
+    { symbol: 'KCHOL', name: 'Koç Holding', price: 198.50, change: 2.98 },
   ],
   topLosers: [
     { symbol: 'GARAN', name: 'Garanti BBVA', price: 78.90, change: -2.45 },
     { symbol: 'AKBNK', name: 'Akbank', price: 52.10, change: -1.98 },
     { symbol: 'YKBNK', name: 'Yapı Kredi', price: 25.40, change: -1.56 },
+    { symbol: 'VAKBN', name: 'Vakıfbank', price: 18.75, change: -1.32 },
+    { symbol: 'HALKB', name: 'Halkbank', price: 15.60, change: -1.15 },
   ],
 };
 
@@ -81,6 +129,7 @@ export function BISTOverview({ onStockClick }: BISTOverviewProps) {
   const [indexChange, setIndexChange] = useState(mockBistData.indexChange);
   const [topGainers, setTopGainers] = useState<BISTStock[]>(mockBistData.topGainers);
   const [topLosers, setTopLosers] = useState<BISTStock[]>(mockBistData.topLosers);
+  const [stockCount, setStockCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,15 +152,41 @@ export function BISTOverview({ onStockClick }: BISTOverviewProps) {
         change: safeNumber(stock.changePercent, 0),
       }));
 
-      // Sort by change percentage
+      console.log('[BIST] Processed stocks:', processedStocks.map(s => `${s.symbol}: ${s.change.toFixed(2)}%`));
+
+      // Sort by change percentage (descending - highest first)
       const sorted = [...processedStocks].sort((a, b) => b.change - a.change);
 
-      // Top 3 gainers and losers
-      const gainers = sorted.filter(s => s.change > 0).slice(0, 3);
-      const losers = sorted.filter(s => s.change < 0).slice(-3).reverse();
+      // Check if we have valid price data from API
+      const hasValidData = processedStocks.some(s => s.price > 0);
 
-      setTopGainers(gainers.length > 0 ? gainers : mockBistData.topGainers);
-      setTopLosers(losers.length > 0 ? losers : mockBistData.topLosers);
+      let gainers: BISTStock[];
+      let losers: BISTStock[];
+
+      if (hasValidData) {
+        // Sort ascending for losers (lowest/most negative first)
+        const sortedAsc = [...processedStocks].sort((a, b) => a.change - b.change);
+
+        // Top 5 gainers (highest change first)
+        gainers = sorted.slice(0, 5);
+
+        // Top 5 losers (lowest change first - could be negative or least positive)
+        // NEVER fall back to mock data - always show real stocks
+        losers = sortedAsc.slice(0, 5);
+
+        setStockCount(processedStocks.length);
+        console.log(`[BIST] Fetched ${processedStocks.length} stocks from BIST100`);
+        console.log('[BIST] Top 5 Gainers:', gainers.map(s => `${s.symbol}: ₺${s.price.toFixed(2)} ${s.change.toFixed(2)}%`));
+        console.log('[BIST] Top 5 Losers:', losers.map(s => `${s.symbol}: ₺${s.price.toFixed(2)} ${s.change.toFixed(2)}%`));
+      } else {
+        // No valid data at all - use mock as last resort
+        gainers = mockBistData.topGainers;
+        losers = mockBistData.topLosers;
+        console.log('[BIST] No valid data - using mock');
+      }
+
+      setTopGainers(gainers);
+      setTopLosers(losers);
     } catch (err) {
       console.error('Failed to fetch BIST data:', err);
       setError('Failed to load');
@@ -140,14 +215,19 @@ export function BISTOverview({ onStockClick }: BISTOverviewProps) {
     <Card
       title={t('bistOverview')}
       headerAction={
-        <button
-          onClick={fetchData}
-          disabled={isLoading}
-          className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
-          title="Refresh"
-        >
-          <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500">
+            {stockCount > 0 ? `${stockCount} stocks` : ''}
+          </span>
+          <button
+            onClick={fetchData}
+            disabled={isLoading}
+            className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-all"
+            title="Refresh"
+          >
+            <IoRefresh className={`text-sm ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       }
     >
       {isLoading && indexValue === mockBistData.indexValue ? (

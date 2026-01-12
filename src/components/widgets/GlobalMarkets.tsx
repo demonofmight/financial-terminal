@@ -37,10 +37,23 @@ const futuresInfo: Record<string, { name: string; displaySymbol: string }> = {
   'YM=F': { name: 'US30', displaySymbol: 'US30' },
 };
 
-// Fallback mock data
+// Sort order for US indices (30, 100, 500)
+const usIndexOrder: Record<string, number> = {
+  // Futures
+  'US30': 1, 'YM': 1,
+  'US100': 2, 'NQ': 2,
+  'US500': 3, 'ES': 3,
+  // Regular indices
+  'DJI': 1, '^DJI': 1,
+  'IXIC': 2, '^IXIC': 2,
+  'GSPC': 3, '^GSPC': 3,
+};
+
+// Fallback mock data (US in 30-100-500 order)
 const mockGlobalMarkets: MarketIndex[] = [
-  { symbol: 'DJI', name: 'Dow Jones', region: 'US', value: 38654.42, change: 0.67, status: 'open' },
-  { symbol: 'IXIC', name: 'NASDAQ', region: 'US', value: 16156.33, change: 1.24, status: 'open' },
+  { symbol: 'US30', name: 'US30', region: 'US', value: 38654.42, change: 0.67, status: 'open' },
+  { symbol: 'US100', name: 'US100', region: 'US', value: 16156.33, change: 1.24, status: 'open' },
+  { symbol: 'US500', name: 'US500', region: 'US', value: 5234.18, change: 0.89, status: 'open' },
   { symbol: 'DAX', name: 'DAX 40', region: 'DE', value: 18235.45, change: -0.32, status: 'closed' },
   { symbol: 'FTSE', name: 'FTSE 100', region: 'UK', value: 8164.12, change: 0.18, status: 'closed' },
   { symbol: 'CAC', name: 'CAC 40', region: 'FR', value: 7628.34, change: -0.45, status: 'closed' },
@@ -172,7 +185,14 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
         });
       }
 
-      // Combine: US first, then non-US
+      // Sort US data by index order (30, 100, 500)
+      usMarketData.sort((a, b) => {
+        const orderA = usIndexOrder[a.symbol] || 99;
+        const orderB = usIndexOrder[b.symbol] || 99;
+        return orderA - orderB;
+      });
+
+      // Combine: US first (sorted), then non-US
       setMarkets([...usMarketData, ...processedNonUS]);
     } catch (err) {
       console.error('Failed to fetch global markets:', err);
