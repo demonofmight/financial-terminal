@@ -87,10 +87,13 @@ const symbolMappings: Record<string, string> = {
   NG: 'NYMEX:NG1!',      // Natural Gas
   HG: 'COMEX:HG1!',      // Copper
   ZW: 'CBOT:ZW1!',       // Wheat
-  // US Index Futures (for extended hours)
+  // US Index Futures (for extended hours) - multiple aliases
   ES: 'CME_MINI:ES1!',   // S&P 500 E-mini
   NQ: 'CME_MINI:NQ1!',   // NASDAQ E-mini
   YM: 'CBOT_MINI:YM1!',  // Dow E-mini
+  US500: 'CME_MINI:ES1!', // CFD-style alias for S&P 500 futures
+  US100: 'CME_MINI:NQ1!', // CFD-style alias for NASDAQ futures
+  US30: 'CBOT_MINI:YM1!', // CFD-style alias for Dow futures
   // Treasury
   TNX: 'TVC:TNX',
 };
@@ -103,8 +106,8 @@ const openInNewTabSymbols = [
   'CL', 'BZ', 'NG', 'HG', 'ZW',
   // Global Indices (some have issues)
   'GSPC', 'DJI', 'IXIC', 'GDAXI', 'FTSE', 'FCHI', 'N225', 'HSI', 'KS11',
-  // US Index Futures
-  'ES', 'NQ', 'YM',
+  // US Index Futures (both naming conventions)
+  'ES', 'NQ', 'YM', 'US500', 'US100', 'US30',
 ];
 
 function AppContent() {

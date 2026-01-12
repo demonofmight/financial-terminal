@@ -5,8 +5,9 @@ import { useLanguage } from '../../i18n';
 import { fetchSP500Index } from '../../services/api/yahoo';
 import { fetchCryptoMarketData } from '../../services/api/coingecko';
 import { fetchMetalPrice } from '../../services/api/goldapi';
-import { getMarketStatus } from '../../utils/marketHours';
+import { getMarketStatus, getAsiaGroupedStatus } from '../../utils/marketHours';
 import { MarketStatusTooltip } from '../ui/MarketStatusTooltip';
+import { AsiaMarketTooltip } from '../ui/AsiaMarketTooltip';
 
 interface HeaderProps {
   onRefresh: () => void;
@@ -112,7 +113,7 @@ export function Header({
   // Get market statuses using centralized utility
   const usStatus = getMarketStatus('US');
   const euStatus = getMarketStatus('EU');
-  const asiaStatus = getMarketStatus('ASIA');
+  const asiaGroupedStatus = getAsiaGroupedStatus(); // Per-exchange Asia status
   const bistStatus = getMarketStatus('BIST');
 
   return (
@@ -143,14 +144,14 @@ export function Header({
             </span>
           </MarketStatusTooltip>
           <span>|</span>
-          <MarketStatusTooltip marketId="ASIA">
+          <AsiaMarketTooltip asiaStatus={asiaGroupedStatus}>
             <span>
               Asia: {' '}
-              <span className={asiaStatus.statusClass}>
-                {asiaStatus.isOpen ? t('open') : t('closed')}
+              <span className={asiaGroupedStatus.statusClass}>
+                {asiaGroupedStatus.statusText}
               </span>
             </span>
-          </MarketStatusTooltip>
+          </AsiaMarketTooltip>
           <span>|</span>
           <MarketStatusTooltip marketId="BIST">
             <span>

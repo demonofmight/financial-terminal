@@ -44,12 +44,27 @@ export const MARKETS: Record<string, MarketInfo> = {
     regularOpen: 8, // 08:00 UTC
     regularClose: 16.5, // 16:30 UTC
   },
-  ASIA: {
-    id: 'ASIA',
-    name: 'Asia',
+  // Asia - Individual exchanges with different hours
+  TOKYO: {
+    id: 'TOKYO',
+    name: 'Tokyo',
     timezone: 'Asia/Tokyo',
-    regularOpen: 0, // 00:00 UTC (09:00 Tokyo)
-    regularClose: 6, // 06:00 UTC (15:00 Tokyo) - simplified
+    regularOpen: 0, // 09:00 JST = 00:00 UTC
+    regularClose: 6, // 15:00 JST = 06:00 UTC
+  },
+  HONGKONG: {
+    id: 'HONGKONG',
+    name: 'Hong Kong',
+    timezone: 'Asia/Hong_Kong',
+    regularOpen: 1.5, // 09:30 HKT = 01:30 UTC
+    regularClose: 8, // 16:00 HKT = 08:00 UTC
+  },
+  SEOUL: {
+    id: 'SEOUL',
+    name: 'Seoul',
+    timezone: 'Asia/Seoul',
+    regularOpen: 0, // 09:00 KST = 00:00 UTC
+    regularClose: 6.5, // 15:30 KST = 06:30 UTC
   },
   BIST: {
     id: 'BIST',
@@ -59,6 +74,9 @@ export const MARKETS: Record<string, MarketInfo> = {
     regularClose: 15, // 18:00 Istanbul = 15:00 UTC
   },
 };
+
+// Asia markets for grouped status calculation
+export const ASIA_MARKETS = ['TOKYO', 'HONGKONG', 'SEOUL'] as const;
 
 export interface MarketStatusInfo {
   status: MarketStatus;
@@ -390,4 +408,53 @@ export function formatLocalTime(date: Date): string {
     minute: '2-digit',
     hour12: false,
   });
+}
+
+/**
+ * Get grouped Asia market status for header display
+ * Returns count of open markets and individual statuses
+ */
+export interface AsiaGroupedStatus {
+  openCount: number;
+  totalCount: number;
+  statusText: string;
+  statusClass: string;
+  markets: Array<{
+    id: string;
+    name: string;
+    status: MarketStatusInfo;
+  }>;
+}
+
+export function getAsiaGroupedStatus(): AsiaGroupedStatus {
+  const markets = ASIA_MARKETS.map(marketId => ({
+    id: marketId,
+    name: MARKETS[marketId].name,
+    status: getMarketStatus(marketId),
+  }));
+
+  const openCount = markets.filter(m => m.status.isOpen).length;
+  const totalCount = markets.length;
+
+  let statusText: string;
+  let statusClass: string;
+
+  if (openCount === 0) {
+    statusText = 'CLOSED';
+    statusClass = 'text-gray-500';
+  } else if (openCount === totalCount) {
+    statusText = 'OPEN';
+    statusClass = 'text-neon-green';
+  } else {
+    statusText = `${openCount}/${totalCount} OPEN`;
+    statusClass = 'text-neon-amber';
+  }
+
+  return {
+    openCount,
+    totalCount,
+    statusText,
+    statusClass,
+    markets,
+  };
 }

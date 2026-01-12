@@ -4,7 +4,7 @@ import { IoGlobeOutline, IoRefresh } from 'react-icons/io5';
 import { useLanguage } from '../../i18n';
 import { fetchGlobalIndices, fetchUSFutures } from '../../services/api/yahoo';
 import { useRefresh } from '../../contexts/RefreshContext';
-import { getMarketStatus as getCentralMarketStatus, type MarketStatus } from '../../utils/marketHours';
+import { getMarketStatus as getCentralMarketStatus, getAsiaGroupedStatus, type MarketStatus } from '../../utils/marketHours';
 import type { QuoteData } from '../../services/api/yahoo';
 
 interface MarketIndex {
@@ -30,11 +30,11 @@ const indexInfo: Record<string, { name: string; region: string }> = {
   '^KS11': { name: 'KOSPI', region: 'KR' },
 };
 
-// US Futures mappings (for extended hours trading)
+// US Futures mappings (for extended hours trading) - CFD-style naming
 const futuresInfo: Record<string, { name: string; displaySymbol: string }> = {
-  'ES=F': { name: 'S&P 500 Futures', displaySymbol: 'ES' },
-  'NQ=F': { name: 'NASDAQ Futures', displaySymbol: 'NQ' },
-  'YM=F': { name: 'Dow Futures', displaySymbol: 'YM' },
+  'ES=F': { name: 'US500', displaySymbol: 'US500' },
+  'NQ=F': { name: 'US100', displaySymbol: 'US100' },
+  'YM=F': { name: 'US30', displaySymbol: 'US30' },
 };
 
 // Fallback mock data
@@ -73,9 +73,9 @@ const regionToMarketId: Record<string, string> = {
   DE: 'EU',
   UK: 'EU',
   FR: 'EU',
-  JP: 'ASIA',
-  HK: 'ASIA',
-  KR: 'ASIA',
+  JP: 'TOKYO',     // Per-exchange status
+  HK: 'HONGKONG',  // Per-exchange status
+  KR: 'SEOUL',     // Per-exchange status
 };
 
 // Determine market status based on current time using centralized utility
@@ -103,24 +103,63 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
     try {
       // Check US market status to determine if we should fetch futures
       const usMarketStatus = getCentralMarketStatus('US');
-      const shouldFetchFutures = usMarketStatus.status === 'pre' ||
-                                  usMarketStatus.status === 'post' ||
-                                  usMarketStatus.status === 'futures';
+      const isExtendedHours = usMarketStatus.status === 'pre' ||
+                              usMarketStatus.status === 'post' ||
+                              usMarketStatus.status === 'futures';
 
-      // Fetch global indices
+      // Fetch global indices (always fetch all)
       const indicesData = await fetchGlobalIndices();
 
-      // Process indices (excluding US if we're showing futures)
-      const processedMarkets: MarketIndex[] = indicesData
-        .filter((quote: QuoteData) => {
-          // If showing futures, exclude US indices
-          if (shouldFetchFutures) {
-            const isUSIndex = quote.symbol === '^GSPC' || quote.symbol === '^DJI' || quote.symbol === '^IXIC';
-            return !isUSIndex;
+      // Separate US and non-US indices
+      const usIndices = indicesData.filter((q: QuoteData) =>
+        q.symbol === '^GSPC' || q.symbol === '^DJI' || q.symbol === '^IXIC'
+      );
+      const nonUSIndices = indicesData.filter((q: QuoteData) =>
+        q.symbol !== '^GSPC' && q.symbol !== '^DJI' && q.symbol !== '^IXIC'
+      );
+
+      // Process non-US indices (Europe + Asia)
+      const processedNonUS: MarketIndex[] = nonUSIndices.map((quote: QuoteData) => {
+        const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
+        return {
+          symbol: quote.symbol.replace('^', ''),
+          name: info.name,
+          region: info.region,
+          value: quote.price,
+          change: quote.changePercent,
+          status: getMarketStatus(info.region),
+        };
+      });
+
+      // Handle US data - try futures during extended hours, fallback to indices
+      let usMarketData: MarketIndex[] = [];
+
+      if (isExtendedHours) {
+        try {
+          const futuresData = await fetchUSFutures();
+          if (futuresData.length > 0) {
+            usMarketData = futuresData.map((quote: QuoteData) => {
+              const info = futuresInfo[quote.symbol] || { name: quote.symbol, displaySymbol: quote.symbol };
+              return {
+                symbol: info.displaySymbol,
+                name: info.name,
+                region: 'US',
+                value: quote.price,
+                change: quote.changePercent,
+                status: usMarketStatus.status,
+                isFutures: true,
+              };
+            });
+            console.log('[GlobalMarkets] Using futures data for US:', usMarketData.length);
           }
-          return true;
-        })
-        .map((quote: QuoteData) => {
+        } catch (futuresErr) {
+          console.warn('[GlobalMarkets] Futures fetch failed, using indices:', futuresErr);
+        }
+      }
+
+      // Fallback to regular indices if no futures data
+      if (usMarketData.length === 0) {
+        usMarketData = usIndices.map((quote: QuoteData) => {
           const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
           return {
             symbol: quote.symbol.replace('^', ''),
@@ -131,48 +170,10 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
             status: getMarketStatus(info.region),
           };
         });
-
-      // If US market is in extended hours, fetch and add futures
-      if (shouldFetchFutures) {
-        try {
-          const futuresData = await fetchUSFutures();
-          const processedFutures: MarketIndex[] = futuresData.map((quote: QuoteData) => {
-            const info = futuresInfo[quote.symbol] || { name: quote.symbol, displaySymbol: quote.symbol };
-            return {
-              symbol: info.displaySymbol,
-              name: info.name,
-              region: 'US',
-              value: quote.price,
-              change: quote.changePercent,
-              status: usMarketStatus.status,
-              isFutures: true,
-            };
-          });
-          // Add futures at the beginning for US section
-          processedMarkets.unshift(...processedFutures);
-        } catch (futuresErr) {
-          console.error('Failed to fetch US futures:', futuresErr);
-          // If futures fail, fall back to regular indices
-          const fallbackIndices = indicesData
-            .filter((quote: QuoteData) => {
-              return quote.symbol === '^GSPC' || quote.symbol === '^DJI' || quote.symbol === '^IXIC';
-            })
-            .map((quote: QuoteData) => {
-              const info = indexInfo[quote.symbol] || { name: quote.symbol, region: 'US' };
-              return {
-                symbol: quote.symbol.replace('^', ''),
-                name: info.name,
-                region: info.region,
-                value: quote.price,
-                change: quote.changePercent,
-                status: getMarketStatus(info.region),
-              };
-            });
-          processedMarkets.unshift(...fallbackIndices);
-        }
       }
 
-      setMarkets(processedMarkets);
+      // Combine: US first, then non-US
+      setMarkets([...usMarketData, ...processedNonUS]);
     } catch (err) {
       console.error('Failed to fetch global markets:', err);
       setError('Failed to load');
@@ -291,20 +292,23 @@ export function GlobalMarkets({ onIndexClick }: GlobalMarketsProps) {
             </div>
           )}
 
-          {/* Asia */}
-          {asia.length > 0 && (
-            <div>
-              <div className="text-[10px] text-pink-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <span>🌏</span> {t('asiaPacific')}
-                <span className={`ml-auto ${statusLabels[getRegionStatus(asia)].class}`}>
-                  ● {statusLabels[getRegionStatus(asia)].text}
-                </span>
+          {/* Asia - Per-exchange status */}
+          {asia.length > 0 && (() => {
+            const asiaStatus = getAsiaGroupedStatus();
+            return (
+              <div>
+                <div className="text-[10px] text-pink-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <span>🌏</span> {t('asiaPacific')}
+                  <span className={`ml-auto ${asiaStatus.statusClass}`}>
+                    ● {asiaStatus.statusText}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {asia.map(renderIndex)}
+                </div>
               </div>
-              <div className="space-y-1">
-                {asia.map(renderIndex)}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {error && (
             <div className="text-center mt-2">
