@@ -60,6 +60,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/frankfurter/, ''),
       },
+      // Finnhub API (Free tier: 60 calls/min, stock news & company data)
+      '/api/finnhub': {
+        target: 'https://finnhub.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/finnhub/, ''),
+      },
     },
   },
 })

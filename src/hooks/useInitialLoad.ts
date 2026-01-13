@@ -18,6 +18,7 @@ const DATA_SOURCES = [
   { id: 'currencies', weight: 10, message: 'Getting currency rates...' },
   { id: 'calendar', weight: 5, message: 'Loading economic calendar...' },
   { id: 'commodities', weight: 5, message: 'Fetching commodities...' },
+  { id: 'news', weight: 5, message: 'Loading market news...' },
 ];
 
 const TOTAL_WEIGHT = DATA_SOURCES.reduce((sum, s) => sum + s.weight, 0);
@@ -121,4 +122,5 @@ export const DATA_SOURCE_IDS = {
   CURRENCIES: 'currencies',
   CALENDAR: 'calendar',
   COMMODITIES: 'commodities',
+  NEWS: 'news',
 } as const;

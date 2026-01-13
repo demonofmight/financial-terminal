@@ -20,6 +20,7 @@ import { GlobalMarkets } from './components/widgets/GlobalMarkets';
 import { TreasuryYields } from './components/widgets/TreasuryYields';
 import { Commodities } from './components/widgets/Commodities';
 import { EconomicCalendar } from './components/widgets/EconomicCalendar';
+import { MarketNews } from './components/widgets/MarketNews';
 import { TradingViewModal } from './components/widgets/TradingViewModal';
 
 // Symbol mappings for TradingView
@@ -190,6 +191,7 @@ function AppContent() {
     'currency-rates': <CurrencyRates onPairClick={(pair) => openChart(pair, pair)} />,
     'bist-overview': <BISTOverview onStockClick={(symbol) => openChart(symbol, `BIST: ${symbol}`)} />,
     'commodities': <Commodities onCommodityClick={(symbol) => openChart(symbol, `${symbol} Futures`)} />,
+    'market-news': <MarketNews />,
   }), [openChart]);
 
   return (

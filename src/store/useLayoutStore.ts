@@ -14,12 +14,13 @@ export const ALL_WIDGET_IDS = [
   'currency-rates',
   'bist-overview',
   'commodities',
+  'market-news',
 ];
 
 // Default widget order (optimized for 4-column masonry layout)
 // Column 1: sector-heatmap, precious-metals, bist-overview
 // Column 2: sp500-movers, crypto-tracker, currency-rates
-// Column 3: global-markets, commodities
+// Column 3: global-markets, commodities, market-news
 // Column 4: market-sentiment, economic-calendar, treasury-yields
 export const DEFAULT_WIDGET_ORDER = [
   'sector-heatmap',
@@ -30,9 +31,10 @@ export const DEFAULT_WIDGET_ORDER = [
   'currency-rates',
   'global-markets',
   'commodities',
+  'treasury-yields',
   'market-sentiment',
   'economic-calendar',
-  'treasury-yields',
+  'market-news',
 ];
 
 // Widget metadata for display
@@ -48,6 +50,7 @@ export const WIDGET_INFO: Record<string, { title: string; titleTr: string }> = {
   'currency-rates': { title: 'Currency Rates', titleTr: 'Döviz Kurları' },
   'bist-overview': { title: 'BIST Overview', titleTr: 'BIST Özeti' },
   'commodities': { title: 'Commodities', titleTr: 'Emtialar' },
+  'market-news': { title: 'Market News', titleTr: 'Piyasa Haberleri' },
 };
 
 interface LayoutState {

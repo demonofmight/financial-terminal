@@ -26,6 +26,16 @@ export const translations = {
     commodities: 'Commodities',
     economicCalendar: 'Economic Calendar',
     marketSentiment: 'Market Sentiment',
+    marketNews: 'Market News',
+
+    // Market News
+    newsGeneral: 'General',
+    newsCrypto: 'Crypto',
+    newsForex: 'Forex',
+    newsMerger: 'M&A',
+    readMore: 'Read more',
+    noNews: 'No news available',
+    loadingNews: 'Loading news...',
 
     // Sector Names
     sectors: {
@@ -197,6 +207,16 @@ export const translations = {
     commodities: 'Emtialar',
     economicCalendar: 'Ekonomik Takvim',
     marketSentiment: 'Piyasa Duyarlılığı',
+    marketNews: 'Piyasa Haberleri',
+
+    // Market News
+    newsGeneral: 'Genel',
+    newsCrypto: 'Kripto',
+    newsForex: 'Döviz',
+    newsMerger: 'Birleşme',
+    readMore: 'Devamını oku',
+    noNews: 'Haber bulunamadı',
+    loadingNews: 'Haberler yükleniyor...',
 
     // Sector Names
     sectors: {
